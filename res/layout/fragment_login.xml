@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.lolapp.LoginFragment" >
+
+    <TextView
+        android:id="@+id/loginTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:text="Account Login"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:typeface="serif" />
+
+    <ImageView
+        android:id="@+id/underline1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/loginTitle"
+        android:layout_marginBottom="10dp"
+        android:layout_marginTop="10dp"
+        android:background="#000000"
+        android:padding="0.5dp" />
+
+    <TextView
+        android:id="@+id/usernameLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/underline1"
+        android:layout_below="@+id/underline1"
+        android:text="Username"
+        android:typeface="serif" />
+
+    <TextView
+        android:id="@+id/passwordLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/usernameLabel"
+        android:layout_below="@+id/usernameLabel"
+        android:layout_marginTop="46dp"
+        android:text="Password"
+        android:typeface="serif" />
+
+    <EditText
+        android:id="@+id/usernameText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/usernameLabel"
+        android:layout_alignRight="@+id/underline1"
+        android:layout_below="@+id/usernameLabel"
+        android:singleLine="true"
+        android:ems="10" >
+
+        <requestFocus />
+    </EditText>
+
+    <EditText
+        android:id="@+id/passwordText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/passwordLabel"
+        android:layout_alignRight="@+id/usernameText"
+        android:layout_below="@+id/passwordLabel"
+        android:ems="10"
+        android:singleLine="true"
+        android:inputType="textPassword" >
+    </EditText>
+
+    <CheckBox
+        android:id="@+id/rememberLogin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/passwordText"
+        android:layout_below="@+id/passwordText"
+        android:text="Remember Username"
+        android:typeface="serif" />
+
+    <CheckBox
+        android:id="@+id/loginAutomatically"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/rememberLogin"
+        android:layout_below="@+id/rememberLogin"
+        android:text="Login Automatically"
+        android:typeface="serif" />
+
+    <Button
+        android:id="@+id/loginButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/loginAutomatically"
+        android:layout_centerHorizontal="true"
+        android:text="Login" />
+
+</RelativeLayout>
