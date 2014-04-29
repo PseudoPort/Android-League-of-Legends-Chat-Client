@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+      xmlns:compat="http://schemas.android.com/apk/res-auto" >
+    <item android:id="@+id/action_settings"
+          android:icon="@drawable/ic_launcher"
+          android:title="Settings"
+          compat:showAsAction="ifRoom"/>
+    
+    <item android:id="@+id/action_friendlist"
+          android:icon="@drawable/ic_launcher"
+          android:title="Friends"
+          compat:showAsAction="ifRoom"/>
+    
+    <item android:id="@+id/action_home"
+          android:icon="@drawable/ic_launcher"
+          android:title="Home"
+          compat:showAsAction="ifRoom"/>
+    
+    <item android:id="@+id/action_chatlist"
+          android:icon="@drawable/ic_launcher"
+          android:title="Chats"
+          compat:showAsAction="ifRoom"/>
+    
+    <item android:id="@+id/action_notifications"
+          android:icon="@drawable/ic_launcher"
+          android:title="Notifications"
+          compat:showAsAction="ifRoom"/>
+
+</menu>

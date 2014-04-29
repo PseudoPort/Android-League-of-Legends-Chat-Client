@@ -13,11 +13,19 @@ import com.example.lolapp.XMPPService.GroupType;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v7.app.ActionBar;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.Window;
+import android.widget.Toast;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.support.v4.app.DialogFragment;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
@@ -30,21 +38,22 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	public static final String SERVICE = "pvp.net";
 
 	MainReceiver mainReceiver;
-	
+
 	Activity activity = this;
-	
-	
+
+	ActionBar actionBar;
+
 	// Update in game time
 	boolean updateInGameTime;
 	Thread updateFriends = null;
-	
+
 	// Fragment Manager
 	FragmentManager fragmentManager = null;
 	FragmentTransaction fragmentTransaction = null;
 
 	// Fragments
 	LoginFragment loginFragment;
-	FriendsListFragment mainFragment;
+	FriendsListFragment friendListFragment;
 	HashMap<String, ChatFragment> chatFragment;
 	ChatListFragment chatListFragment;
 
@@ -64,18 +73,20 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	// Active Chats
 	HashMap<String, LinkedHashMap<Long, ChatMessage>> chatMessages = new HashMap<String, LinkedHashMap<Long, ChatMessage>>(); // KEY-userFrom (user/private/public), LinkedHashMap<TIME, CHATMESSAGE>
 	HashMap<String, ChatData> chatData = new HashMap<String, ChatData>(); // Chat data (key-chatname/type)
-	
+
 	// Chat List Adapter
 	List<String> chatListHeader = new ArrayList<String>();
 	HashMap<String, List<String>> chatListChildren = new HashMap<String, List<String>>();
 	ChatListAdapter chatListAdapter;
-	
-	
-	
+
+
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+
+		actionBar = getSupportActionBar();
 
 		if (savedInstanceState == null) {
 			// Initialize FragmentManager
@@ -84,7 +95,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 
 			// Initialize Fragments
 			loginFragment = new LoginFragment();
-			mainFragment = new FriendsListFragment();
+			friendListFragment = new FriendsListFragment();
 			chatFragment = new HashMap<String, ChatFragment>();
 			chatListFragment = new ChatListFragment();
 
@@ -92,8 +103,10 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 			fragmentTransaction.add(android.R.id.content, loginFragment);
 			fragmentTransaction.commit();
 
+			// Hide split action bar
 		}
-		
+
+
 		// Start update task
 		updateInGameTime = true;
 		if (updateFriends == null) {
@@ -117,7 +130,43 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		intentFilter.addAction(XMPPService.ACTION_UPDATE_GROUP_CHAT);
 		intentFilter.addAction(XMPPService.ACTION_SET_SUMMONER_NAME);
 		registerReceiver(mainReceiver, intentFilter);
-		
+
+	}
+
+	// On action bar select	
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		MenuInflater inflater = getMenuInflater();
+		inflater.inflate(R.menu.activity_main_actions, menu);
+
+		return super.onCreateOptionsMenu(menu);
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+		case R.id.action_settings:
+
+			return true;
+		case R.id.action_friendlist:
+			fragmentTransaction = fragmentManager.beginTransaction();
+			fragmentTransaction.replace(android.R.id.content, friendListFragment);//, "friendListTag");
+			fragmentTransaction.commit();
+			updateRoster();
+			return true;
+		case R.id.action_home:
+			return true;
+		case R.id.action_chatlist:
+			fragmentTransaction = fragmentManager.beginTransaction();
+			fragmentTransaction.replace(android.R.id.content, chatListFragment);//, "chatListTag");//.addToBackStack("list_chat_tag");
+			fragmentTransaction.commit();
+			return true;
+
+		case R.id.action_notifications:
+			return true;
+		default:
+			return super.onOptionsItemSelected(item);
+		}
 	}
 
 	// Fragment Callback
@@ -129,7 +178,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		dialog.show();
 
 		// OVERRIDE LOGIN
-		username = "mohammedsirhan";
+		//username = "mohammedsirhan";
 
 		this.username = username;
 		this.password = password;
@@ -150,7 +199,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		startService(serviceIntent);
 
 	}
-	
+
 	// On Friend List Click / Chat Click
 	@Override
 	public void onFriendChatClick(String name) {
@@ -161,32 +210,34 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 				if (!s.isOnline) return;
 				chatId = s.user;
 				if (!chatData.containsKey(chatId)) chatData.put(chatId, new ChatData(name, GroupType.NORMAL));
+
 				break;
 			}
 		}
+
 		System.out.println(name + " " + chatId);
 		onChatListClick(chatId);
 	}
-	
+
 	// On Chat List Click
 	@Override
 	public void onChatListClick(String chatId) {
 		if (!chatData.containsKey(chatId)) return;
-		
+
 		String chatName = chatData.get(chatId).name;
-		
+
 		ChatFragment chatTemp = new ChatFragment();
 		if (!chatFragment.containsKey(chatId)) chatFragment.put(chatId,  chatTemp);
 		else chatTemp = chatFragment.get(chatId);
-		
+
 		Bundle b = new Bundle();
 		b.putString(ChatFragment.CHAT_ID, chatId);
 		b.putString(ChatFragment.NAME, chatName);
 		if (summoners.containsKey(chatId)) b.putSerializable(ChatFragment.TYPE, ChatFragment.Type.NORMAL);
 		else b.putSerializable(ChatFragment.TYPE, ChatFragment.Type.GROUP);
-		
+
 		chatTemp.setArguments(b);
-		
+
 		// Switch fragment
 		fragmentTransaction = fragmentManager.beginTransaction();
 		fragmentTransaction.replace(android.R.id.content, chatTemp, "chatTag").addToBackStack("main_chat_tag");
@@ -222,13 +273,13 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 			chatListHeader.add("Private");
 			chatListHeader.add("Public");
 		}
-		
+
 		// Add Chats to groups
 		List<String> normalChat, privateChat, publicChat;
 		normalChat = new ArrayList<String>();
 		privateChat = new ArrayList<String>();
 		publicChat = new ArrayList<String>();
-		
+
 		// Add keys of each chat into the groups
 		for (Entry<String, LinkedHashMap<Long, ChatMessage>> entry : chatMessages.entrySet()) {
 			System.out.println("ADDING: " + entry.getKey());
@@ -246,33 +297,39 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		chatListChildren.put(chatListHeader.get(2), publicChat);
 
 		chatListAdapter = new ChatListAdapter(context, chatListHeader, chatListChildren, chatData, chatMessages);
-		
+
 		chatListFragment.chatListView.setAdapter(chatListAdapter);
-		
+
 		// Expand view
 		for (int i = 0; i < chatListHeader.size(); i++) {
 			chatListFragment.chatListView.expandGroup(i);
 		}
 	}
-	
+
 	@Override
 	public void onBackPressed() {
+		return;
+		/*
 		if (getSupportFragmentManager().findFragmentByTag("chatTag") != null) {
 			getSupportFragmentManager().popBackStack("main_chat_tag",
 					FragmentManager.POP_BACK_STACK_INCLUSIVE);
-			Intent refreshRoster = new Intent(this, XMPPService.class);
-			refreshRoster.setAction(XMPPService.ACTION_UPDATE_ROSTER);
-			startService(refreshRoster);
+			updateRoster();
 		} else if (getSupportFragmentManager().findFragmentByTag("chatListTag") != null) {
 			getSupportFragmentManager().popBackStack("list_chat_tag",
 					FragmentManager.POP_BACK_STACK_INCLUSIVE);
-			Intent refreshRoster = new Intent(this, XMPPService.class);
-			refreshRoster.setAction(XMPPService.ACTION_UPDATE_ROSTER);
-			startService(refreshRoster);
+			updateRoster();
 		} else {
 			super.onBackPressed();
-		}
+		}*/
 	}
+
+	// OTHER METHODS
+	public void updateRoster() {
+		Intent refreshRoster = new Intent(this, XMPPService.class);
+		refreshRoster.setAction(XMPPService.ACTION_UPDATE_ROSTER);
+		startService(refreshRoster);
+	}
+
 
 	private class MainReceiver extends BroadcastReceiver {
 
@@ -311,16 +368,14 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
-					Intent updateRoster = new Intent(context, XMPPService.class);
-					updateRoster.setAction(XMPPService.ACTION_UPDATE_ROSTER);
-					context.startService(updateRoster);
+					updateRoster();
 
 					// Switch fragment
 					fragmentTransaction = fragmentManager.beginTransaction();
-					fragmentTransaction.remove(loginFragment);
-					fragmentTransaction.add(android.R.id.content, mainFragment);
+					//fragmentTransaction.remove(loginFragment);
+					//fragmentTransaction.add(android.R.id.content, friendListFragment);
+					fragmentTransaction.replace(android.R.id.content, friendListFragment);
 					fragmentTransaction.commit();
-
 				}
 
 				currentUser = intent.getExtras().getString(XMPPService.USER);
@@ -345,30 +400,30 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 				}
 
 				ArrayList<ArrayList<String>> friendGroups = new ArrayList<ArrayList<String>>();
-				mainFragment.listHeader = new ArrayList<String>();
-				mainFragment.listChildren = new HashMap<String, List<String>>();
+				friendListFragment.listHeader = new ArrayList<String>();
+				friendListFragment.listChildren = new HashMap<String, List<String>>();
 
 				for (String g : grouplist) {
-					mainFragment.listHeader.add(g);
+					friendListFragment.listHeader.add(g);
 					friendGroups.add(new ArrayList<String>());
 				}
 
 				for (Entry<String, Summoner> entry : summoners.entrySet()) {
 					Summoner s = summoners.get(entry.getKey());
-					friendGroups.get(mainFragment.listHeader.indexOf(s.group)).add(s.user);
+					friendGroups.get(friendListFragment.listHeader.indexOf(s.group)).add(s.user);
 				}
 
-				for (int i = 0; i < mainFragment.listHeader.size(); i++) {
-					mainFragment.listChildren.put(mainFragment.listHeader.get(i), friendGroups.get(i));
+				for (int i = 0; i < friendListFragment.listHeader.size(); i++) {
+					friendListFragment.listChildren.put(friendListFragment.listHeader.get(i), friendGroups.get(i));
 				}
 
-				mainFragment.summoners = summoners;
+				friendListFragment.summoners = summoners;
 
-				mainFragment.friendsListAdapter = new FriendsListAdapter(context, mainFragment.listHeader, mainFragment.listChildren, mainFragment.summoners);
-				mainFragment.friendsListView.setAdapter(mainFragment.friendsListAdapter);
+				friendListFragment.friendsListAdapter = new FriendsListAdapter(context, friendListFragment.listHeader, friendListFragment.listChildren, friendListFragment.summoners);
+				friendListFragment.friendsListView.setAdapter(friendListFragment.friendsListAdapter);
 
-				for (int i = 0; i < mainFragment.listHeader.size() && !mainFragment.listHeader.get(i).equals("Offline"); i++) {
-					mainFragment.friendsListView.expandGroup(i);
+				for (int i = 0; i < friendListFragment.listHeader.size() && !friendListFragment.listHeader.get(i).equals("Offline"); i++) {
+					friendListFragment.friendsListView.expandGroup(i);
 				}
 			} else if (intent.getAction().equals(XMPPService.ACTION_SEND_MESSAGE)) {
 				Bundle b = intent.getExtras();
@@ -426,7 +481,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 				}
 			} else if (intent.getAction().equals(XMPPService.ACTION_SEND_GROUP_MESSAGE)) {
 				Bundle b = intent.getExtras();
-				
+
 				String recipient = b.getString(XMPPService.CHAT_ID);
 				String message = b.getString(XMPPService.MESSAGE);
 
@@ -435,7 +490,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 				if (!chatMessages.containsKey(recipient)) {
 					chatMessages.put(recipient, new LinkedHashMap<Long, ChatMessage>());
 				}
-				
+
 				// Retrieve old messages
 				chat.chatAdapter.clear();
 				for (Entry<Long, ChatMessage> entry : chatMessages.get(recipient).entrySet()) {
@@ -443,20 +498,20 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 					ChatMessage value = (ChatMessage) entry.getValue();
 					chat.chatAdapter.add(value.message);
 				}
-				
+
 				// Add new message
 				chatMessages.get(recipient).put(System.currentTimeMillis(), new ChatMessage(message, username, true));
 				chat.chatAdapter.add(message);
 
 				chat.chatView.setAdapter(chat.chatAdapter);
-				
-				
+
+
 			} else if (intent.getAction().equals(XMPPService.ACTION_RECEIVE_GROUP_MESSAGE)) {
 				Bundle b = intent.getExtras();
 				String chatId = b.getString(XMPPService.CHAT_ID);
 				String message = b.getString(XMPPService.MESSAGE);
 				String sender = b.getString(XMPPService.SENDER);
-				
+
 				// Add new group message
 				// Setup chatMessages
 				if (!chatMessages.containsKey(chatId)) {
@@ -465,7 +520,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 					else chatData.put(chatId,  new ChatData("NAME OF CHAT", GroupType.PUBLIC));
 				}
 				chatMessages.get(chatId).put(System.currentTimeMillis(), new ChatMessage(sender + ": " + message, chatId, false));
-				
+
 				ChatFragment chatTemp = new ChatFragment();
 				if (!chatFragment.containsKey(chatId)) {
 					chatFragment.put(chatId, chatTemp);
@@ -478,55 +533,84 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 					return;
 				}
 				else chatTemp = chatFragment.get(chatId);
-				
+
 				if (chatTemp.chatAdapter != null) {
 					chatTemp.chatAdapter.add(sender + ": " + message);
 					chatTemp.chatAdapter.notifyDataSetChanged();
 				}
 			} else if (intent.getAction().equals(XMPPService.ACTION_SEND_GROUP_INVITE)) {
-				
+
 			} else if (intent.getAction().equals(XMPPService.ACTION_RECEIVE_GROUP_INVITE)) { // On receive group chat invite
 				Bundle b = intent.getExtras();
-				
+
 				String from = b.getString(XMPPService.GROUP_FROM);
 				GroupType type = (GroupType) b.get(XMPPService.GROUP_TYPE);
 				String groupName = b.getString(XMPPService.GROUP_CHAT_NAME);
-				
+
 				long time = b.getLong(XMPPService.TIMESTAMP);
-				
+
 				if (type.equals(GroupType.PRIVATE)) {
-					
+
 				} else {
-					
+
 				}
-				
-				Intent i = new Intent(context, XMPPService.class);
+
+				final Intent i = new Intent(context, XMPPService.class);
 				i.setAction(XMPPService.ACTION_RECEIVE_GROUP_INVITE);
 				i.putExtra(XMPPService.GROUP_FROM, from);
-				i.putExtra(XMPPService.INVITE_RESPONSE, true);
 				i.putExtra(XMPPService.GROUP_TYPE, type);
 				i.putExtra(ChatFragment.TYPE, ChatFragment.Type.GROUP);
 				i.putExtra(XMPPService.GROUP_CHAT_NAME, groupName);
 				
-				startService(i);
+				// Chat invite receive
+				DialogInterface.OnClickListener onInviteClick = new DialogInterface.OnClickListener() {
+					
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						switch (which) {
+						case DialogInterface.BUTTON_POSITIVE:
+							System.out.println("Y");
+							i.putExtra(XMPPService.INVITE_RESPONSE, true);
+							startService(i);
+							break;
+						case DialogInterface.BUTTON_NEGATIVE:
+							System.out.println("N");
+							i.putExtra(XMPPService.INVITE_RESPONSE, false);
+							startService(i);
+							break;
+						case DialogInterface.BUTTON_NEUTRAL:
+							System.out.println("L");
+							break;
+						}
+					}
+				};
+				
+				AlertDialog.Builder builder = new AlertDialog.Builder(context);
+				builder.setMessage("Do you want to accept chat invite?")
+					.setPositiveButton("Yes", onInviteClick)
+					.setNegativeButton("No", onInviteClick)
+					.setNeutralButton("Later", onInviteClick);
+				AlertDialog alert = builder.create();
+				alert.show();
+				
 			} else if (intent.getAction().equals(XMPPService.ACTION_UPDATE_GROUP_CHAT)) { // Update group chat invite
-				
+
 				System.out.println("UPDATING GROUP CHAT");
-				
+
 				Bundle b = intent.getExtras();
-				
+
 				String from = b.getString(XMPPService.GROUP_FROM);
 				boolean response = b.getBoolean(XMPPService.INVITE_RESPONSE);
 				GroupType type = (GroupType) b.get(XMPPService.GROUP_TYPE);
 				String groupName = b.getString(XMPPService.GROUP_CHAT_NAME);
-				
+
 				if (response) {
 					if (!chatMessages.containsKey(from)) chatMessages.put(from, new LinkedHashMap<Long, ChatMessage>());
 					chatData.put(from, new ChatData(groupName, type));
 					if (type.equals(GroupType.PRIVATE)) {
-						
+
 					} else {
-						
+
 					}
 				}
 			}
@@ -543,15 +627,15 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 
 	@Override
 	public boolean onSearchRequested() {
-		Intent intent = new Intent(this, XMPPService.class);
-		intent.setAction(XMPPService.ACTION_SET_AWAY_STATUS);
+		//Intent intent = new Intent(this, XMPPService.class);
+		//intent.setAction(XMPPService.ACTION_SET_AWAY_STATUS);
 		//startService(intent);
 
-		// Switch fragment
-		fragmentTransaction = fragmentManager.beginTransaction();
-		fragmentTransaction.replace(android.R.id.content, chatListFragment, "chatListTag").addToBackStack("list_chat_tag");
-		fragmentTransaction.commit();
-
+		//Intent intent = new Intent(this, XMPPService.class);
+		//intent.setAction(XMPPService.ACTION_SEND_GROUP_INVITE);
+		//intent.putExtra("NAME", "sum54559857@pvp.net");
+		//startService(intent);
+		
 		return super.onSearchRequested();
 	}
 
@@ -561,9 +645,9 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		public void run() {
 			Intent intent = new Intent(activity, XMPPService.class);
 			intent.setAction(XMPPService.ACTION_UPDATE_ROSTER);
-			
+
 			boolean update;
-			
+
 			while (updateInGameTime) {
 				update = false;
 				if (summoners != null) {
@@ -579,7 +663,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 							System.out.println(s.name + ": " + s.inGameTime + " " + time);
 							s.inGameTime = time;
 						}
-						
+
 					}
 					if (update) {
 						System.out.println("UPDATE ROSTER - " + update);
@@ -590,7 +674,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
-					
+
 				}
 			}
 		}
