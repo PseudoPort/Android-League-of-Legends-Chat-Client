@@ -17,11 +17,8 @@ import android.support.v7.app.ActionBar;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.Window;
-import android.widget.Toast;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.support.v4.app.DialogFragment;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -336,283 +333,25 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			if (intent.getAction().equals(XMPPService.ACTION_CONNECT)) {
-				dialog.dismiss();
-
-				boolean success = intent.getBooleanExtra(XMPPService.CONNECTION_STATUS, false);
-				// Write to file
-				FileOutputStream fos;
-				if (!success) {
-					try {
-						fos = context.openFileOutput(FILENAME, Context.MODE_PRIVATE);
-						OutputStreamWriter osw = new OutputStreamWriter(fos);
-						osw.write(remember + "\n" + "false" + "\n" + username + "\n" + password);
-						osw.close();
-						fos.close();
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-
-					AlertDialog.Builder builder = new AlertDialog.Builder(context);
-					builder.setCancelable(false)
-					.setPositiveButton("OK", null)
-					.setMessage("Unable to login!");
-					AlertDialog alert = builder.create();
-					alert.show();
-				} else {
-					try {
-						fos = context.openFileOutput(FILENAME, Context.MODE_PRIVATE);
-						OutputStreamWriter osw = new OutputStreamWriter(fos);
-						osw.write(remember + "\n" + automatic + "\n" + username + "\n" + password);
-						osw.close();
-						fos.close();
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-					updateRoster();
-
-					// Switch fragment
-					fragmentTransaction = fragmentManager.beginTransaction();
-					//fragmentTransaction.remove(loginFragment);
-					//fragmentTransaction.add(android.R.id.content, friendListFragment);
-					fragmentTransaction.replace(android.R.id.content, friendListFragment);
-					fragmentTransaction.commit();
-				}
-
-				currentUser = intent.getExtras().getString(XMPPService.USER);
-
+				onConnect(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_SET_SUMMONER_NAME)) {
-				summonerName = intent.getStringExtra(XMPPService.NAME);
+				setSummonerName(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_UPDATE_ROSTER)) {
-
-				Bundle b = intent.getExtras();
-				ArrayList<String> users = b.getStringArrayList(XMPPService.USER);
-				ArrayList<String> names = b.getStringArrayList(XMPPService.NAME);
-				ArrayList<String> statuses = b.getStringArrayList(XMPPService.STATUS);
-				ArrayList<String> modes = b.getStringArrayList(XMPPService.MODE);
-				ArrayList<String> groups = b.getStringArrayList(XMPPService.GROUP);
-				ArrayList<String> grouplist = b.getStringArrayList(XMPPService.GROUPLIST);
-				ArrayList<String> isOnline = b.getStringArrayList(XMPPService.IS_ONLINE);
-
-				summoners.clear();
-
-				for (int i = 0; i < users.size(); i++) {
-					summoners.put(users.get(i), new Summoner(users.get(i), names.get(i), statuses.get(i), modes.get(i), groups.get(i), Boolean.parseBoolean(isOnline.get(i))));
-				}
-
-				ArrayList<ArrayList<String>> friendGroups = new ArrayList<ArrayList<String>>();
-				friendListFragment.listHeader = new ArrayList<String>();
-				friendListFragment.listChildren = new HashMap<String, List<String>>();
-
-				for (String g : grouplist) {
-					friendListFragment.listHeader.add(g);
-					friendGroups.add(new ArrayList<String>());
-				}
-
-				for (Entry<String, Summoner> entry : summoners.entrySet()) {
-					Summoner s = summoners.get(entry.getKey());
-					friendGroups.get(friendListFragment.listHeader.indexOf(s.group)).add(s.user);
-				}
-
-				for (int i = 0; i < friendListFragment.listHeader.size(); i++) {
-					friendListFragment.listChildren.put(friendListFragment.listHeader.get(i), friendGroups.get(i));
-				}
-
-				friendListFragment.summoners = summoners;
-
-				friendListFragment.friendsListAdapter = new FriendsListAdapter(context, friendListFragment.listHeader, friendListFragment.listChildren, friendListFragment.summoners);
-				friendListFragment.friendsListView.setAdapter(friendListFragment.friendsListAdapter);
-
-				for (int i = 0; i < friendListFragment.listHeader.size() && !friendListFragment.listHeader.get(i).equals("Offline"); i++) {
-					friendListFragment.friendsListView.expandGroup(i);
-				}
+				updateRoster(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_SEND_MESSAGE)) {
-				Bundle b = intent.getExtras();
-
-				String recipient = b.getString(XMPPService.USER);
-				String message = b.getString(XMPPService.MESSAGE);
-
-				ChatFragment chat = chatFragment.get(recipient);
-
-				if (!chatMessages.containsKey(recipient)) {
-					chatMessages.put(recipient, new LinkedHashMap<Long, ChatMessage>());
-				}
-
-				// Retrieve old messages
-				chat.chatAdapter.clear();
-				for (Entry<Long, ChatMessage> entry : chatMessages.get(recipient).entrySet()) {
-					//Long key = (Long) entry.getKey();
-					ChatMessage value = (ChatMessage) entry.getValue();
-					chat.chatAdapter.add(value.message);
-				}
-
-				// Add new message
-				chatMessages.get(recipient).put(System.currentTimeMillis(), new ChatMessage(message, username, true));
-				chat.chatAdapter.add(message);
-
-				chat.chatView.setAdapter(chat.chatAdapter);
+				onSendMessage(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_RECEIVE_MESSAGE)) {
-				Bundle b = intent.getExtras();
-				String user = b.getString(XMPPService.USER);
-
-				// Add new message
-				// Setup chatMessages
-				if (!chatMessages.containsKey(user)) {
-					chatMessages.put(user, new LinkedHashMap<Long, ChatMessage>());
-					chatData.put(user, new ChatData(summoners.get(user).name, GroupType.NORMAL));
-				}
-				chatMessages.get(user).put(System.currentTimeMillis(), new ChatMessage(summoners.get(b.getString(XMPPService.USER)).name + ": " + b.getString(XMPPService.MESSAGE), b.getString(XMPPService.USER), false));
-
-				ChatFragment chatTemp = new ChatFragment();
-				if (!chatFragment.containsKey(user)) {
-					chatFragment.put(user, chatTemp);
-
-					Bundle b2 = new Bundle();
-					b2.putString(ChatFragment.CHAT_ID, user);
-					b2.putString(ChatFragment.NAME, summoners.get(b.getString(XMPPService.USER)).name);
-					b2.putSerializable(ChatFragment.TYPE, ChatFragment.Type.NORMAL);
-					chatTemp.setArguments(b2);
-					return;
-				}
-				else chatTemp = chatFragment.get(user);
-
-				if (chatTemp.chatAdapter != null) {
-					chatTemp.chatAdapter.add(summoners.get(b.getString(XMPPService.USER)).name + ": " + b.getString(XMPPService.MESSAGE));
-					chatTemp.chatAdapter.notifyDataSetChanged();
-				}
+				onReceiveMessage(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_SEND_GROUP_MESSAGE)) {
-				Bundle b = intent.getExtras();
-
-				String recipient = b.getString(XMPPService.CHAT_ID);
-				String message = b.getString(XMPPService.MESSAGE);
-
-				ChatFragment chat = chatFragment.get(recipient);
-
-				if (!chatMessages.containsKey(recipient)) {
-					chatMessages.put(recipient, new LinkedHashMap<Long, ChatMessage>());
-				}
-
-				// Retrieve old messages
-				chat.chatAdapter.clear();
-				for (Entry<Long, ChatMessage> entry : chatMessages.get(recipient).entrySet()) {
-					//Long key = (Long) entry.getKey();
-					ChatMessage value = (ChatMessage) entry.getValue();
-					chat.chatAdapter.add(value.message);
-				}
-
-				// Add new message
-				chatMessages.get(recipient).put(System.currentTimeMillis(), new ChatMessage(message, username, true));
-				chat.chatAdapter.add(message);
-
-				chat.chatView.setAdapter(chat.chatAdapter);
-
-
+				onSendGroupMessage(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_RECEIVE_GROUP_MESSAGE)) {
-				Bundle b = intent.getExtras();
-				String chatId = b.getString(XMPPService.CHAT_ID);
-				String message = b.getString(XMPPService.MESSAGE);
-				String sender = b.getString(XMPPService.SENDER);
-
-				// Add new group message
-				// Setup chatMessages
-				if (!chatMessages.containsKey(chatId)) {
-					chatMessages.put(chatId, new LinkedHashMap<Long, ChatMessage>());
-					if (chatId.contains("pr~")) chatData.put(chatId,  new ChatData("NAME OF CHAT", GroupType.PRIVATE));
-					else chatData.put(chatId,  new ChatData("NAME OF CHAT", GroupType.PUBLIC));
-				}
-				chatMessages.get(chatId).put(System.currentTimeMillis(), new ChatMessage(sender + ": " + message, chatId, false));
-
-				ChatFragment chatTemp = new ChatFragment();
-				if (!chatFragment.containsKey(chatId)) {
-					chatFragment.put(chatId, chatTemp);
-
-					Bundle b2 = new Bundle();
-					b2.putString(ChatFragment.CHAT_ID, chatId);
-					b2.putString(ChatFragment.NAME, "Chat Name");
-					b2.putSerializable(ChatFragment.TYPE, chatData.get(chatId).type);
-					chatTemp.setArguments(b2);
-					return;
-				}
-				else chatTemp = chatFragment.get(chatId);
-
-				if (chatTemp.chatAdapter != null) {
-					chatTemp.chatAdapter.add(sender + ": " + message);
-					chatTemp.chatAdapter.notifyDataSetChanged();
-				}
+				onReceiveGroupMessage(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_SEND_GROUP_INVITE)) {
-
+				onSendGroupInvite(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_RECEIVE_GROUP_INVITE)) { // On receive group chat invite
-				Bundle b = intent.getExtras();
-
-				String from = b.getString(XMPPService.GROUP_FROM);
-				GroupType type = (GroupType) b.get(XMPPService.GROUP_TYPE);
-				String groupName = b.getString(XMPPService.GROUP_CHAT_NAME);
-
-				long time = b.getLong(XMPPService.TIMESTAMP);
-
-				if (type.equals(GroupType.PRIVATE)) {
-
-				} else {
-
-				}
-
-				final Intent i = new Intent(context, XMPPService.class);
-				i.setAction(XMPPService.ACTION_RECEIVE_GROUP_INVITE);
-				i.putExtra(XMPPService.GROUP_FROM, from);
-				i.putExtra(XMPPService.GROUP_TYPE, type);
-				i.putExtra(ChatFragment.TYPE, ChatFragment.Type.GROUP);
-				i.putExtra(XMPPService.GROUP_CHAT_NAME, groupName);
-				
-				// Chat invite receive
-				DialogInterface.OnClickListener onInviteClick = new DialogInterface.OnClickListener() {
-					
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						switch (which) {
-						case DialogInterface.BUTTON_POSITIVE:
-							System.out.println("Y");
-							i.putExtra(XMPPService.INVITE_RESPONSE, true);
-							startService(i);
-							break;
-						case DialogInterface.BUTTON_NEGATIVE:
-							System.out.println("N");
-							i.putExtra(XMPPService.INVITE_RESPONSE, false);
-							startService(i);
-							break;
-						case DialogInterface.BUTTON_NEUTRAL:
-							System.out.println("L");
-							break;
-						}
-					}
-				};
-				
-				AlertDialog.Builder builder = new AlertDialog.Builder(context);
-				builder.setMessage("Do you want to accept chat invite?")
-					.setPositiveButton("Yes", onInviteClick)
-					.setNegativeButton("No", onInviteClick)
-					.setNeutralButton("Later", onInviteClick);
-				AlertDialog alert = builder.create();
-				alert.show();
-				
+				onReceiveGroupInvite(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_UPDATE_GROUP_CHAT)) { // Update group chat invite
-
-				System.out.println("UPDATING GROUP CHAT");
-
-				Bundle b = intent.getExtras();
-
-				String from = b.getString(XMPPService.GROUP_FROM);
-				boolean response = b.getBoolean(XMPPService.INVITE_RESPONSE);
-				GroupType type = (GroupType) b.get(XMPPService.GROUP_TYPE);
-				String groupName = b.getString(XMPPService.GROUP_CHAT_NAME);
-
-				if (response) {
-					if (!chatMessages.containsKey(from)) chatMessages.put(from, new LinkedHashMap<Long, ChatMessage>());
-					chatData.put(from, new ChatData(groupName, type));
-					if (type.equals(GroupType.PRIVATE)) {
-
-					} else {
-
-					}
-				}
+				updateGroupChat(intent);
 			}
 		}
 	}
@@ -676,6 +415,322 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 				} catch (InterruptedException e) {
 
 				}
+			}
+		}
+	}
+	
+	// Create Fragments
+	public void openFriendList() {
+		
+	}
+	
+	public void openChatList() {
+		
+	}
+	
+	public void openHome() {
+		
+	}
+	
+	public void openNotifications() {
+		
+	}
+	
+	public void openSettings() {
+		
+	}
+	
+	// Functions
+	
+	public void setSummonerName(Intent intent) {
+		summonerName = intent.getStringExtra(XMPPService.NAME);
+	}
+	
+	public void onConnect(Intent intent) {
+		dialog.dismiss();
+
+		boolean success = intent.getBooleanExtra(XMPPService.CONNECTION_STATUS, false);
+		// Write to file
+		FileOutputStream fos;
+		if (!success) {
+			try {
+				fos = context.openFileOutput(FILENAME, Context.MODE_PRIVATE);
+				OutputStreamWriter osw = new OutputStreamWriter(fos);
+				osw.write(remember + "\n" + "false" + "\n" + username + "\n" + password);
+				osw.close();
+				fos.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			AlertDialog.Builder builder = new AlertDialog.Builder(context);
+			builder.setCancelable(false)
+			.setPositiveButton("OK", null)
+			.setMessage("Unable to login!");
+			AlertDialog alert = builder.create();
+			alert.show();
+		} else {
+			try {
+				fos = context.openFileOutput(FILENAME, Context.MODE_PRIVATE);
+				OutputStreamWriter osw = new OutputStreamWriter(fos);
+				osw.write(remember + "\n" + automatic + "\n" + username + "\n" + password);
+				osw.close();
+				fos.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			updateRoster();
+
+			// Switch fragment
+			fragmentTransaction = fragmentManager.beginTransaction();
+			//fragmentTransaction.remove(loginFragment);
+			//fragmentTransaction.add(android.R.id.content, friendListFragment);
+			fragmentTransaction.replace(android.R.id.content, friendListFragment);
+			fragmentTransaction.commit();
+		}
+
+		currentUser = intent.getExtras().getString(XMPPService.USER);
+
+	}
+	
+	public void updateRoster(Intent intent) {
+		Bundle b = intent.getExtras();
+		ArrayList<String> users = b.getStringArrayList(XMPPService.USER);
+		ArrayList<String> names = b.getStringArrayList(XMPPService.NAME);
+		ArrayList<String> statuses = b.getStringArrayList(XMPPService.STATUS);
+		ArrayList<String> modes = b.getStringArrayList(XMPPService.MODE);
+		ArrayList<String> groups = b.getStringArrayList(XMPPService.GROUP);
+		ArrayList<String> grouplist = b.getStringArrayList(XMPPService.GROUPLIST);
+		ArrayList<String> isOnline = b.getStringArrayList(XMPPService.IS_ONLINE);
+
+		summoners.clear();
+
+		for (int i = 0; i < users.size(); i++) {
+			summoners.put(users.get(i), new Summoner(users.get(i), names.get(i), statuses.get(i), modes.get(i), groups.get(i), Boolean.parseBoolean(isOnline.get(i))));
+		}
+
+		ArrayList<ArrayList<String>> friendGroups = new ArrayList<ArrayList<String>>();
+		friendListFragment.listHeader = new ArrayList<String>();
+		friendListFragment.listChildren = new HashMap<String, List<String>>();
+
+		for (String g : grouplist) {
+			friendListFragment.listHeader.add(g);
+			friendGroups.add(new ArrayList<String>());
+		}
+
+		for (Entry<String, Summoner> entry : summoners.entrySet()) {
+			Summoner s = summoners.get(entry.getKey());
+			friendGroups.get(friendListFragment.listHeader.indexOf(s.group)).add(s.user);
+		}
+
+		for (int i = 0; i < friendListFragment.listHeader.size(); i++) {
+			friendListFragment.listChildren.put(friendListFragment.listHeader.get(i), friendGroups.get(i));
+		}
+
+		friendListFragment.summoners = summoners;
+
+		friendListFragment.friendsListAdapter = new FriendsListAdapter(context, friendListFragment.listHeader, friendListFragment.listChildren, friendListFragment.summoners);
+		friendListFragment.friendsListView.setAdapter(friendListFragment.friendsListAdapter);
+
+		for (int i = 0; i < friendListFragment.listHeader.size() && !friendListFragment.listHeader.get(i).equals("Offline"); i++) {
+			friendListFragment.friendsListView.expandGroup(i);
+		}
+	}
+	
+	public void onSendMessage(Intent intent) {
+		Bundle b = intent.getExtras();
+
+		String recipient = b.getString(XMPPService.USER);
+		String message = b.getString(XMPPService.MESSAGE);
+
+		ChatFragment chat = chatFragment.get(recipient);
+
+		if (!chatMessages.containsKey(recipient)) {
+			chatMessages.put(recipient, new LinkedHashMap<Long, ChatMessage>());
+		}
+
+		// Retrieve old messages
+		chat.chatAdapter.clear();
+		for (Entry<Long, ChatMessage> entry : chatMessages.get(recipient).entrySet()) {
+			//Long key = (Long) entry.getKey();
+			ChatMessage value = (ChatMessage) entry.getValue();
+			chat.chatAdapter.add(value.message);
+		}
+
+		// Add new message
+		chatMessages.get(recipient).put(System.currentTimeMillis(), new ChatMessage(message, username, true));
+		chat.chatAdapter.add(message);
+
+		chat.chatView.setAdapter(chat.chatAdapter);
+	}
+	
+	public void onReceiveMessage(Intent intent) {
+		Bundle b = intent.getExtras();
+		String user = b.getString(XMPPService.USER);
+
+		// Add new message
+		// Setup chatMessages
+		if (!chatMessages.containsKey(user)) {
+			chatMessages.put(user, new LinkedHashMap<Long, ChatMessage>());
+			chatData.put(user, new ChatData(summoners.get(user).name, GroupType.NORMAL));
+		}
+		chatMessages.get(user).put(System.currentTimeMillis(), new ChatMessage(summoners.get(b.getString(XMPPService.USER)).name + ": " + b.getString(XMPPService.MESSAGE), b.getString(XMPPService.USER), false));
+
+		ChatFragment chatTemp = new ChatFragment();
+		if (!chatFragment.containsKey(user)) {
+			chatFragment.put(user, chatTemp);
+
+			Bundle b2 = new Bundle();
+			b2.putString(ChatFragment.CHAT_ID, user);
+			b2.putString(ChatFragment.NAME, summoners.get(b.getString(XMPPService.USER)).name);
+			b2.putSerializable(ChatFragment.TYPE, ChatFragment.Type.NORMAL);
+			chatTemp.setArguments(b2);
+			return;
+		}
+		else chatTemp = chatFragment.get(user);
+
+		if (chatTemp.chatAdapter != null) {
+			chatTemp.chatAdapter.add(summoners.get(b.getString(XMPPService.USER)).name + ": " + b.getString(XMPPService.MESSAGE));
+			chatTemp.chatAdapter.notifyDataSetChanged();
+		}
+	}
+	
+	public void onSendGroupMessage(Intent intent) {
+		Bundle b = intent.getExtras();
+
+		String recipient = b.getString(XMPPService.CHAT_ID);
+		String message = b.getString(XMPPService.MESSAGE);
+
+		ChatFragment chat = chatFragment.get(recipient);
+
+		if (!chatMessages.containsKey(recipient)) {
+			chatMessages.put(recipient, new LinkedHashMap<Long, ChatMessage>());
+		}
+
+		// Retrieve old messages
+		chat.chatAdapter.clear();
+		for (Entry<Long, ChatMessage> entry : chatMessages.get(recipient).entrySet()) {
+			//Long key = (Long) entry.getKey();
+			ChatMessage value = (ChatMessage) entry.getValue();
+			chat.chatAdapter.add(value.message);
+		}
+
+		// Add new message
+		chatMessages.get(recipient).put(System.currentTimeMillis(), new ChatMessage(message, username, true));
+		chat.chatAdapter.add(message);
+
+		chat.chatView.setAdapter(chat.chatAdapter);
+	}
+	
+	public void onReceiveGroupMessage(Intent intent) {
+		Bundle b = intent.getExtras();
+		String chatId = b.getString(XMPPService.CHAT_ID);
+		String message = b.getString(XMPPService.MESSAGE);
+		String sender = b.getString(XMPPService.SENDER);
+
+		// Add new group message
+		// Setup chatMessages
+		if (!chatMessages.containsKey(chatId)) {
+			chatMessages.put(chatId, new LinkedHashMap<Long, ChatMessage>());
+			if (chatId.contains("pr~")) chatData.put(chatId,  new ChatData("NAME OF CHAT", GroupType.PRIVATE));
+			else chatData.put(chatId,  new ChatData("NAME OF CHAT", GroupType.PUBLIC));
+		}
+		chatMessages.get(chatId).put(System.currentTimeMillis(), new ChatMessage(sender + ": " + message, chatId, false));
+
+		ChatFragment chatTemp = new ChatFragment();
+		if (!chatFragment.containsKey(chatId)) {
+			chatFragment.put(chatId, chatTemp);
+
+			Bundle b2 = new Bundle();
+			b2.putString(ChatFragment.CHAT_ID, chatId);
+			b2.putString(ChatFragment.NAME, "Chat Name");
+			b2.putSerializable(ChatFragment.TYPE, chatData.get(chatId).type);
+			chatTemp.setArguments(b2);
+			return;
+		}
+		else chatTemp = chatFragment.get(chatId);
+
+		if (chatTemp.chatAdapter != null) {
+			chatTemp.chatAdapter.add(sender + ": " + message);
+			chatTemp.chatAdapter.notifyDataSetChanged();
+		}
+	}
+	
+	public void onSendGroupInvite(Intent intent) {
+		
+	}
+	
+	public void onReceiveGroupInvite(Intent intent) {
+		Bundle b = intent.getExtras();
+
+		String from = b.getString(XMPPService.GROUP_FROM);
+		GroupType type = (GroupType) b.get(XMPPService.GROUP_TYPE);
+		String groupName = b.getString(XMPPService.GROUP_CHAT_NAME);
+
+		//long time = b.getLong(XMPPService.TIMESTAMP);
+
+		if (type.equals(GroupType.PRIVATE)) {
+
+		} else {
+
+		}
+
+		final Intent i = new Intent(context, XMPPService.class);
+		i.setAction(XMPPService.ACTION_RECEIVE_GROUP_INVITE);
+		i.putExtra(XMPPService.GROUP_FROM, from);
+		i.putExtra(XMPPService.GROUP_TYPE, type);
+		i.putExtra(ChatFragment.TYPE, ChatFragment.Type.GROUP);
+		i.putExtra(XMPPService.GROUP_CHAT_NAME, groupName);
+		
+		// Chat invite receive
+		DialogInterface.OnClickListener onInviteClick = new DialogInterface.OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				switch (which) {
+				case DialogInterface.BUTTON_POSITIVE:
+					System.out.println("Y");
+					i.putExtra(XMPPService.INVITE_RESPONSE, true);
+					startService(i);
+					break;
+				case DialogInterface.BUTTON_NEGATIVE:
+					System.out.println("N");
+					i.putExtra(XMPPService.INVITE_RESPONSE, false);
+					startService(i);
+					break;
+				case DialogInterface.BUTTON_NEUTRAL:
+					System.out.println("L");
+					break;
+				}
+			}
+		};
+		
+		AlertDialog.Builder builder = new AlertDialog.Builder(context);
+		builder.setMessage("Do you want to join " + groupName + "?")
+			.setPositiveButton("Yes", onInviteClick)
+			.setNegativeButton("No", onInviteClick)
+			.setNeutralButton("Later", onInviteClick);
+		AlertDialog alert = builder.create();
+		alert.show();
+	}
+	
+	public void updateGroupChat(Intent intent) {
+		System.out.println("UPDATING GROUP CHAT (Adding messages)");
+
+		Bundle b = intent.getExtras();
+
+		String from = b.getString(XMPPService.GROUP_FROM);
+		boolean response = b.getBoolean(XMPPService.INVITE_RESPONSE);
+		GroupType type = (GroupType) b.get(XMPPService.GROUP_TYPE);
+		String groupName = b.getString(XMPPService.GROUP_CHAT_NAME);
+
+		if (response) {
+			if (!chatMessages.containsKey(from)) chatMessages.put(from, new LinkedHashMap<Long, ChatMessage>());
+			chatData.put(from, new ChatData(groupName, type));
+			if (type.equals(GroupType.PRIVATE)) {
+
+			} else {
+
 			}
 		}
 	}
