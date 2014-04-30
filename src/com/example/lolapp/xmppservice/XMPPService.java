@@ -1,4 +1,4 @@
-package com.example.lolapp;
+package com.example.lolapp.xmppservice;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,6 +50,7 @@ import org.jivesoftware.smackx.provider.VCardProvider;
 import org.jivesoftware.smackx.provider.XHTMLExtensionProvider;
 import org.jivesoftware.smackx.search.UserSearch;
 
+import com.example.lolapp.ChatFragment;
 import com.example.lolapp.ChatFragment.Type;
 import com.example.lolapp.utils.DummySSLSocketFactory;
 
@@ -63,6 +64,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.telephony.gsm.SmsMessage.MessageClass;
 import android.util.Log;
+import android.widget.Toast;
 
 public class XMPPService extends Service {
 
@@ -244,6 +246,7 @@ public class XMPPService extends Service {
 				connection.sendPacket(presence);
 				Thread getSumName = new GetSummonerName();
 				getSumName.start();
+				//new ConnectionTest().start();
 			} catch (Exception ex) {
 				Log.e("XMPPStatus", "Failed to log in as "+  "USER");
 				Log.e("XMPPStatus", ex.toString());
@@ -543,7 +546,7 @@ public class XMPPService extends Service {
 			public void presenceChanged(Presence arg0) {
 				//System.out.println("UPDATING ROSTER");
 				//System.out.println(arg0.getFrom());
-				System.out.println(arg0.toXML());
+				//System.out.println(arg0.toXML());
 				updateRoster();
 			}
 
@@ -752,7 +755,7 @@ public class XMPPService extends Service {
 		muc2.invite("sum20459570@pvp.net", "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\"YOSOYSATANAS666's Chat Room\"}");
 		*/
 		
-		
+		/*
 		Roster r = connection.getRoster();
 		RosterEntry re = r.getEntry("sum54559857@pvp.net");
 		/*try {
@@ -762,6 +765,7 @@ public class XMPPService extends Service {
 		} catch (Exception e2) {
 			e2.printStackTrace();
 		}*/
+		/*
 		try {
 			r.createGroup("TEST GROUP");
 		} catch (IllegalArgumentException e1) {
@@ -771,21 +775,30 @@ public class XMPPService extends Service {
 		for (RosterGroup g : r.getGroups()) {
 			System.out.println(g.getName());
 		}
+		*/
 		
+		Presence p = new Presence(Presence.Type.available);
+		connection.sendPacket(p);
 	}
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+	// Check connection status
+	private class ConnectionTest extends Thread implements Runnable {
+
+		@Override
+		public void run() {
+			while (true) {
+				if (connection == null) {
+					System.out.println("CONNECTION NULL!!");
+					try {
+						Thread.sleep(30000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+		
+	}
 	
 	@Override
 	public IBinder onBind(Intent intent) {

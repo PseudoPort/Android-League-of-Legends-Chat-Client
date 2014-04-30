@@ -31,7 +31,7 @@
         </activity>
 
         <service
-            android:name=".XMPPService"
+            android:name="com.example.lolapp.xmppservice.XMPPService"
             android:exported="false" />
     </application>
 

@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.example.lolapp.adapters.ChatListAdapter;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
@@ -44,45 +46,31 @@ public class ChatListFragment extends Fragment {
 		chatListView = (ExpandableListView) view.findViewById(R.id.chatListView);
 		textView1 = (TextView) view.findViewById(R.id.textView1);
 		textView1.setText("");
-		
+
 		chatListView.setOnGroupClickListener(new OnGroupClickListener() {
-			
+
 			@Override
 			public boolean onGroupClick(ExpandableListView parent, View v,
 					int groupPosition, long id) {
 				return true;
 			}
 		});
-		
+
 		chatListView.setOnChildClickListener(new OnChildClickListener() {
 			@Override
 			public boolean onChildClick(ExpandableListView parent, View v,
 					int groupPosition, int childPosition, long id) {
-				
-				//ChatListAdapter mChatListAdapter = (ChatListAdapter)parent.getAdapter();
-				
-				//System.out.println((String)(mChatListAdapter.getChild(groupPosition, childPosition)));
-				//System.out.println(parent.getAdapter().getItem(groupPosition));
-				//System.out.println(parent.getAdapter().getItem(childPosition));
-				
-				//System.out.println(groupPosition + " " + childPosition);
-				
-				//for (int i = 0; i < parent.getAdapter().getCount(); i++) {
-				//	System.out.println(i + ":" + parent.getAdapter().getItem(i));
-				//}
-				
-				//onChatListClick(name);
-				
+
 				ChatListAdapter chatListAdapter = (ChatListAdapter) chatListView.getExpandableListAdapter();				
 				//System.out.println(chatListAdapter.getChild(groupPosition, childPosition));
-				
+
 				String chatId = chatListAdapter.getChild(groupPosition, childPosition).toString();
 				mCallback.onChatListClick(chatId);
-				
+
 				return true;
 			}
 		});
-		
+
 		mCallback.onChatListCreated();
 	}
 

@@ -1,5 +1,7 @@
 package com.example.lolapp;
 
+import com.example.lolapp.xmppservice.XMPPService;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;

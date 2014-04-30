@@ -1,4 +1,4 @@
-package com.example.lolapp;
+package com.example.lolapp.model;
 
 public class ChatMessage {
 	public String message;

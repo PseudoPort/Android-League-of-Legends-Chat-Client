@@ -11,6 +11,8 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.provider.ProviderManager;
 
+import com.example.lolapp.adapters.FriendsListAdapter;
+import com.example.lolapp.model.Summoner;
 import com.example.lolapp.utils.DummySSLSocketFactory;
 
 import android.app.Activity;

@@ -1,8 +1,12 @@
-package com.example.lolapp;
+package com.example.lolapp.adapters;
 
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
+
+import com.example.lolapp.R;
+import com.example.lolapp.R.id;
+import com.example.lolapp.R.layout;
+import com.example.lolapp.model.Summoner;
 
 import android.content.Context;
 import android.graphics.Typeface;
@@ -12,21 +16,19 @@ import android.view.ViewGroup;
 import android.widget.BaseExpandableListAdapter;
 import android.widget.TextView;
 
-public class ChatListAdapter extends BaseExpandableListAdapter {
+public class FriendsListAdapter extends BaseExpandableListAdapter {
 
 	Context context;
 	List<String> listHeader;
 	HashMap<String, List<String>> listChildren;
-
-	HashMap<String, LinkedHashMap<Long, ChatMessage>> chatMessages;
-	HashMap<String, ChatData> chatData;
 	
-	public ChatListAdapter (Context context, List<String> listHeader, HashMap<String, List<String>> listChildren, HashMap<String, ChatData> chatData, HashMap<String, LinkedHashMap<Long, ChatMessage>> chatMessages) {
+	HashMap<String, Summoner> summoners;
+	
+	public FriendsListAdapter (Context context, List<String> listHeader, HashMap<String, List<String>> listChildren, HashMap<String, Summoner> summoners) {
 		this.context = context;
 		this.listHeader = listHeader;
 		this.listChildren = listChildren;
-		this.chatMessages = chatMessages;
-		this.chatData = chatData;
+		this.summoners = summoners;
 	}
 
 	@Override
@@ -78,7 +80,7 @@ public class ChatListAdapter extends BaseExpandableListAdapter {
 				.findViewById(R.id.friendsListHeader);
 		lblListHeader.setTypeface(null, Typeface.BOLD);
 		lblListHeader.setText(headerTitle);
-
+		
 		return convertView;
 	}
 
@@ -86,26 +88,34 @@ public class ChatListAdapter extends BaseExpandableListAdapter {
 	public View getChildView(int groupPosition, int childPosition,
 			boolean isLastChild, View convertView, ViewGroup parent) {
 		final String childName = (String) getChild(groupPosition, childPosition);
-
-		if (convertView == null) {
-			LayoutInflater infalInflater = (LayoutInflater) this.context
-					.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-			convertView = infalInflater.inflate(R.layout.friendslist_item, null);
-		}
-
-		// Set Properties
-		String chatName = chatData.get(childName).name;
-
-		TextView chatTitle = (TextView) convertView.findViewById(R.id.friendName);
-		//TextView status = (TextView) convertView.findViewById(R.id.status);
-
-		chatTitle.setText(chatName);
-
-		return convertView;
+		 
+        if (convertView == null) {
+            LayoutInflater infalInflater = (LayoutInflater) this.context
+                    .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            convertView = infalInflater.inflate(R.layout.friendslist_item, null);
+        }
+        
+        // Set Properties
+        Summoner s = summoners.get(childName);
+        
+        TextView friendName = (TextView) convertView.findViewById(R.id.friendName);
+        TextView status = (TextView) convertView.findViewById(R.id.status);
+        
+        friendName.setText(s.name);
+        try {
+        	status.setText(s.getStatus());
+        } catch (Exception e) {
+        	
+        }
+        
+        return convertView;
 	}
 
 	@Override
 	public boolean isChildSelectable(int groupPosition, int childPosition) {
 		return true;
 	}
+	
+	
+	
 }

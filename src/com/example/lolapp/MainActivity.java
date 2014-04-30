@@ -8,7 +8,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
-import com.example.lolapp.XMPPService.GroupType;
+import com.example.lolapp.adapters.ChatListAdapter;
+import com.example.lolapp.adapters.FriendsListAdapter;
+import com.example.lolapp.adapters.NotificationListAdapter;
+import com.example.lolapp.model.ChatData;
+import com.example.lolapp.model.ChatMessage;
+import com.example.lolapp.model.Summoner;
+import com.example.lolapp.model.Notification;
+import com.example.lolapp.xmppservice.XMPPService;
+import com.example.lolapp.xmppservice.XMPPService.GroupType;
 
 import android.support.v7.app.ActionBarActivity;
 import android.support.v4.app.FragmentManager;
@@ -27,7 +35,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 
-public class MainActivity extends ActionBarActivity implements LoginFragment.OnLoginListener, FriendsListFragment.OnFriendChatClickListener, ChatFragment.OnCreateListener, ChatListFragment.ChatListListener{
+public class MainActivity extends ActionBarActivity implements LoginFragment.OnLoginListener, FriendsListFragment.OnFriendChatClickListener, ChatFragment.OnCreateListener, ChatListFragment.ChatListListener, NotificationFragment.NotificationListListener{
 	public static final String FILENAME = "login_file";
 
 	public static final String HOST = "chat.na1.lol.riotgames.com";
@@ -53,6 +61,8 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	FriendsListFragment friendListFragment;
 	HashMap<String, ChatFragment> chatFragment;
 	ChatListFragment chatListFragment;
+	HomeFragment homeFragment;
+	NotificationFragment notificationFragment;
 
 	// other
 	boolean remember, automatic;
@@ -65,7 +75,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 
 	// Current User
 	String currentUser;
-	String summonerName;
+	String summonerName = null;
 
 	// Active Chats
 	HashMap<String, LinkedHashMap<Long, ChatMessage>> chatMessages = new HashMap<String, LinkedHashMap<Long, ChatMessage>>(); // KEY-userFrom (user/private/public), LinkedHashMap<TIME, CHATMESSAGE>
@@ -75,8 +85,10 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	List<String> chatListHeader = new ArrayList<String>();
 	HashMap<String, List<String>> chatListChildren = new HashMap<String, List<String>>();
 	ChatListAdapter chatListAdapter;
-
-
+	
+	// Notifications
+	NotificationListAdapter notificationListAdapter;
+	ArrayList<Notification> notificationList = new ArrayList<Notification>();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -95,6 +107,8 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 			friendListFragment = new FriendsListFragment();
 			chatFragment = new HashMap<String, ChatFragment>();
 			chatListFragment = new ChatListFragment();
+			homeFragment = new HomeFragment();
+			notificationFragment = new NotificationFragment();
 
 			// Set fragment view 			
 			fragmentTransaction.add(android.R.id.content, loginFragment);
@@ -143,23 +157,19 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.action_settings:
-
+			openSettings();
 			return true;
 		case R.id.action_friendlist:
-			fragmentTransaction = fragmentManager.beginTransaction();
-			fragmentTransaction.replace(android.R.id.content, friendListFragment);//, "friendListTag");
-			fragmentTransaction.commit();
-			updateRoster();
+			openFriendList();
 			return true;
 		case R.id.action_home:
+			openHome();
 			return true;
 		case R.id.action_chatlist:
-			fragmentTransaction = fragmentManager.beginTransaction();
-			fragmentTransaction.replace(android.R.id.content, chatListFragment);//, "chatListTag");//.addToBackStack("list_chat_tag");
-			fragmentTransaction.commit();
+			openChatList();
 			return true;
-
 		case R.id.action_notifications:
+			openNotifications();
 			return true;
 		default:
 			return super.onOptionsItemSelected(item);
@@ -219,26 +229,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	// On Chat List Click
 	@Override
 	public void onChatListClick(String chatId) {
-		if (!chatData.containsKey(chatId)) return;
-
-		String chatName = chatData.get(chatId).name;
-
-		ChatFragment chatTemp = new ChatFragment();
-		if (!chatFragment.containsKey(chatId)) chatFragment.put(chatId,  chatTemp);
-		else chatTemp = chatFragment.get(chatId);
-
-		Bundle b = new Bundle();
-		b.putString(ChatFragment.CHAT_ID, chatId);
-		b.putString(ChatFragment.NAME, chatName);
-		if (summoners.containsKey(chatId)) b.putSerializable(ChatFragment.TYPE, ChatFragment.Type.NORMAL);
-		else b.putSerializable(ChatFragment.TYPE, ChatFragment.Type.GROUP);
-
-		chatTemp.setArguments(b);
-
-		// Switch fragment
-		fragmentTransaction = fragmentManager.beginTransaction();
-		fragmentTransaction.replace(android.R.id.content, chatTemp, "chatTag").addToBackStack("main_chat_tag");
-		fragmentTransaction.commit();
+		openChat(chatId);
 	}
 
 	// On Chat Fragment Created
@@ -294,7 +285,6 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		chatListChildren.put(chatListHeader.get(2), publicChat);
 
 		chatListAdapter = new ChatListAdapter(context, chatListHeader, chatListChildren, chatData, chatMessages);
-
 		chatListFragment.chatListView.setAdapter(chatListAdapter);
 
 		// Expand view
@@ -302,9 +292,20 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 			chatListFragment.chatListView.expandGroup(i);
 		}
 	}
+	
+	// On NotificationList Fragment Created
+	@Override
+	public void onNotificationListCreated() {
+		// Populate notification list		
+		notificationListAdapter = new NotificationListAdapter(notificationList);
+		if (notificationFragment.notificationListView != null) notificationFragment.notificationListView.setAdapter(notificationListAdapter);
+	}
 
 	@Override
 	public void onBackPressed() {
+		notificationList.add(0, new Notification("New Notif - invit", NotificationListAdapter.TYPE_INVITE));
+		onNotificationListCreated();
+		
 		return;
 		/*
 		if (getSupportFragmentManager().findFragmentByTag("chatTag") != null) {
@@ -373,7 +374,11 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		//Intent intent = new Intent(this, XMPPService.class);
 		//intent.setAction(XMPPService.ACTION_SEND_GROUP_INVITE);
 		//intent.putExtra("NAME", "sum54559857@pvp.net");
+		
 		//startService(intent);
+		
+		notificationList.add(0, new Notification("New Notif", NotificationListAdapter.TYPE_MESSAGE));
+		onNotificationListCreated();
 		
 		return super.onSearchRequested();
 	}
@@ -421,29 +426,76 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	
 	// Create Fragments
 	public void openFriendList() {
-		
+		friendListFragment = new FriendsListFragment();
+		fragmentTransaction = fragmentManager.beginTransaction();
+		fragmentTransaction.replace(android.R.id.content, friendListFragment);
+		fragmentTransaction.commit();
+		updateRoster();
 	}
 	
 	public void openChatList() {
-		
+		chatListFragment = new ChatListFragment();
+		fragmentTransaction = fragmentManager.beginTransaction();
+		fragmentTransaction.replace(android.R.id.content, chatListFragment);
+		fragmentTransaction.commit();
 	}
 	
 	public void openHome() {
+		homeFragment = new HomeFragment();
 		
+		Bundle b = new Bundle();
+		b.putString(HomeFragment.SUMMONER_NAME, summonerName);
+		homeFragment.setArguments(b);
+		
+		fragmentTransaction = fragmentManager.beginTransaction();
+		fragmentTransaction.replace(android.R.id.content, homeFragment);
+		fragmentTransaction.commit();
 	}
 	
 	public void openNotifications() {
-		
+		notificationFragment = new NotificationFragment();
+		fragmentTransaction = fragmentManager.beginTransaction();
+		fragmentTransaction.replace(android.R.id.content, notificationFragment);
+		fragmentTransaction.commit();
 	}
 	
 	public void openSettings() {
 		
 	}
 	
+	public void openLogin() {
+		
+	}
+	
+	public void openChat(String chatId) {
+		if (!chatData.containsKey(chatId)) return;
+
+		String chatName = chatData.get(chatId).name;
+
+		ChatFragment chatTemp = new ChatFragment();
+		if (!chatFragment.containsKey(chatId)) chatFragment.put(chatId,  chatTemp);
+		else chatTemp = chatFragment.get(chatId);
+
+		Bundle b = new Bundle();
+		b.putString(ChatFragment.CHAT_ID, chatId);
+		b.putString(ChatFragment.NAME, chatName);
+		if (summoners.containsKey(chatId)) b.putSerializable(ChatFragment.TYPE, ChatFragment.Type.NORMAL);
+		else b.putSerializable(ChatFragment.TYPE, ChatFragment.Type.GROUP);
+
+		chatTemp.setArguments(b);
+
+		// Switch fragment
+		fragmentTransaction = fragmentManager.beginTransaction();
+		//fragmentTransaction.replace(android.R.id.content, chatTemp, "chatTag").addToBackStack("main_chat_tag");
+		fragmentTransaction.replace(android.R.id.content, chatTemp);
+		fragmentTransaction.commit();
+	}
+	
 	// Functions
 	
 	public void setSummonerName(Intent intent) {
 		summonerName = intent.getStringExtra(XMPPService.NAME);
+		if (homeFragment != null) homeFragment.setSummonerName(summonerName);
 	}
 	
 	public void onConnect(Intent intent) {
@@ -479,14 +531,9 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			updateRoster();
 
 			// Switch fragment
-			fragmentTransaction = fragmentManager.beginTransaction();
-			//fragmentTransaction.remove(loginFragment);
-			//fragmentTransaction.add(android.R.id.content, friendListFragment);
-			fragmentTransaction.replace(android.R.id.content, friendListFragment);
-			fragmentTransaction.commit();
+			openFriendList();
 		}
 
 		currentUser = intent.getExtras().getString(XMPPService.USER);

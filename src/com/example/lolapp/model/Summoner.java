@@ -1,4 +1,4 @@
-package com.example.lolapp;
+package com.example.lolapp.model;
 
 public class Summoner {
 
@@ -79,6 +79,9 @@ public class Summoner {
 			} else if (getGameStatus().equals("inGame")) {
 				s = "In Game: " + getChampion() + " (" + getTimeStamp() + " min)";
 			}
+		} else if (mode.equals("away")) {
+			s = getChatStatus();
+			if (s.equals("")) s = "Away";
 		}
 		if (!isOnline) s = "Offline";
 		if (isOnline && s.equals("")) s = "Online";

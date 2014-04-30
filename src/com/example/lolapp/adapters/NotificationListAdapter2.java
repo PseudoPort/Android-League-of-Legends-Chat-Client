@@ -1,7 +1,9 @@
-package com.example.lolapp;
+package com.example.lolapp.adapters;
 
 import java.util.HashMap;
 import java.util.List;
+
+import com.example.lolapp.R;
 
 import android.content.Context;
 import android.graphics.Typeface;
@@ -11,19 +13,16 @@ import android.view.ViewGroup;
 import android.widget.BaseExpandableListAdapter;
 import android.widget.TextView;
 
-public class FriendsListAdapter extends BaseExpandableListAdapter {
-
+public class NotificationListAdapter2 extends BaseExpandableListAdapter{
+	
 	Context context;
 	List<String> listHeader;
 	HashMap<String, List<String>> listChildren;
 	
-	HashMap<String, Summoner> summoners;
-	
-	public FriendsListAdapter (Context context, List<String> listHeader, HashMap<String, List<String>> listChildren, HashMap<String, Summoner> summoners) {
+	public NotificationListAdapter2 (Context context, List<String> listHeader, HashMap<String, List<String>> listChildren) {
 		this.context = context;
 		this.listHeader = listHeader;
 		this.listChildren = listChildren;
-		this.summoners = summoners;
 	}
 
 	@Override
@@ -91,17 +90,8 @@ public class FriendsListAdapter extends BaseExpandableListAdapter {
         }
         
         // Set Properties
-        Summoner s = summoners.get(childName);
-        
-        TextView friendName = (TextView) convertView.findViewById(R.id.friendName);
-        TextView status = (TextView) convertView.findViewById(R.id.status);
-        
-        friendName.setText(s.name);
-        try {
-        	status.setText(s.getStatus());
-        } catch (Exception e) {
-        	
-        }
+        TextView notifTitle = (TextView) convertView.findViewById(R.id.friendName);
+        TextView notifDescription = (TextView) convertView.findViewById(R.id.status);
         
         return convertView;
 	}
@@ -110,7 +100,4 @@ public class FriendsListAdapter extends BaseExpandableListAdapter {
 	public boolean isChildSelectable(int groupPosition, int childPosition) {
 		return true;
 	}
-	
-	
-	
 }
