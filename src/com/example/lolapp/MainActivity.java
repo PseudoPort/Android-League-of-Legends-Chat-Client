@@ -27,8 +27,10 @@ import android.support.v7.app.ActionBar;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnTouchListener;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
@@ -319,9 +321,9 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 				@Override
 				public void onItemClick(AdapterView<?> parent, View view,
 						int position, long id) {
-					
+
 					Notification n = notificationList.get(position);
-					
+
 					switch (n.type) {
 					case 0:
 						openChat(n.id);
@@ -331,6 +333,22 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 					case 2:
 						break;
 					}
+				}
+			});
+			
+			// Setup Delete
+			listView.setOnTouchListener(new OnTouchListener() {
+				
+				@Override
+				public boolean onTouch(View v, MotionEvent event) {
+					System.out.println(v.getId());
+					switch (event.getAction()) {
+					case MotionEvent.ACTION_UP:
+						System.out.println("UP");
+					case MotionEvent.ACTION_DOWN:
+						System.out.println("DOWN");
+					}
+					return false;
 				}
 			});
 		}
@@ -386,7 +404,6 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 				onSendGroupInvite(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_RECEIVE_GROUP_INVITE)) { // On receive group chat invite
 				onReceiveGroupInvite(intent);
-				addNotification(intent, 1);
 			} else if (intent.getAction().equals(XMPPService.ACTION_UPDATE_GROUP_CHAT)) { // Update group chat invite
 				updateGroupChat(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_ADD_NOTIFICATION)) {
@@ -517,7 +534,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 
 		// Clear notifications for this chat
 		activeChat = chatId;
-		clearNotification();
+		clearMessageNotification();
 
 		String chatName = chatData.get(chatId).name;
 
@@ -756,7 +773,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 			chatTemp.chatAdapter.add(sender + ": " + message);
 			chatTemp.chatAdapter.notifyDataSetChanged();
 		}
-		
+
 		addNotification(intent, 0);
 	}
 
@@ -764,7 +781,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 
 	}
 
-	public void onReceiveGroupInvite(Intent intent) {
+	public void onReceiveGroupInvite(final Intent intent) {
 		Bundle b = intent.getExtras();
 
 		String from = b.getString(XMPPService.GROUP_FROM);
@@ -804,6 +821,8 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 					break;
 				case DialogInterface.BUTTON_NEUTRAL:
 					System.out.println("L");
+					// Put in notification
+					addNotification(intent, 1);
 					break;
 				}
 			}
@@ -847,19 +866,23 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 
 		Bundle b = intent.getExtras();
 
+
+		String chatId;
+		String message;
+		String sender;
+		String title;
+
+		long t = System.currentTimeMillis();
+		// MS to Time
+		Date date = new Date(t);
+		SimpleDateFormat format = new SimpleDateFormat("'['HH:mm:ss']'");
+		String time = format.format(date);
+
 		switch (type) {
 		case 0:
-			String chatId = b.getString(XMPPService.CHAT_ID);
-			String message = b.getString(XMPPService.MESSAGE);
-			String sender;
-			long t = System.currentTimeMillis();
-
-			String title = "New Message - " + chatData.get(chatId).name;
-
-			// MS to Time
-			Date date = new Date(t);
-			SimpleDateFormat format = new SimpleDateFormat("'['HH:mm:ss']'");
-			String time = format.format(date);
+			chatId = b.getString(XMPPService.CHAT_ID);
+			message = b.getString(XMPPService.MESSAGE);
+			title = "New Message - " + chatData.get(chatId).name;
 
 			// Set message
 			if (b.containsKey(XMPPService.SENDER)) { // GROUP CHAT
@@ -884,6 +907,30 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 			notificationList.add(0, new Notification(title, message, t, type, chatId));
 			break;
 		case 1:
+			String from = b.getString(XMPPService.GROUP_FROM);
+			GroupType typ = (GroupType) b.get(XMPPService.GROUP_TYPE);
+			String groupName = b.getString(XMPPService.GROUP_CHAT_NAME);
+
+			// Check if notification exists
+			for (Notification n : notificationList) {
+				if (n.id.equals(from)) {
+					notificationList.remove(n);
+					break;
+				}
+			}
+			
+			if (typ.equals(XMPPService.GroupType.PRIVATE)) {
+				title = "Private";
+			} else {
+				title = "Public";
+			}
+			
+			title = title + " Chat Invitation";
+			
+			message = groupName;
+			
+			notificationList.add(0, new Notification(title, message, t, type, from));
+
 			break;
 		case 2:
 			break;
@@ -892,7 +939,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		onNotificationListCreated();
 	}
 
-	public void clearNotification() {
+	public void clearMessageNotification() {
 		if (activeChat == null) return;
 
 		for (Notification n : notificationList) {
