@@ -63,8 +63,8 @@ public class NotificationListAdapter extends BaseAdapter {
                     holder.textView1 = (TextView) convertView.findViewById(R.id.friendName);
                     holder.textView2 = (TextView) convertView.findViewById(R.id.status);
 
-                    holder.textView1.setText("Text1 - M");
-                    holder.textView2.setText("Text2 - M");
+                    holder.textView1.setText(notification.title);
+                    holder.textView2.setText(notification.message);
                     break;
                 case TYPE_INVITE:
                     convertView = mInflater.inflate(R.layout.friendslist_item, null);

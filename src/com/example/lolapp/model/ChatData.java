@@ -1,6 +1,5 @@
 package com.example.lolapp.model;
 
-import com.example.lolapp.xmppservice.XMPPService;
 import com.example.lolapp.xmppservice.XMPPService.GroupType;
 
 public class ChatData {

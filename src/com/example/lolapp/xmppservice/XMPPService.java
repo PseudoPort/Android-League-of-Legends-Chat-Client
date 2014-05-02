@@ -62,9 +62,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
-import android.telephony.gsm.SmsMessage.MessageClass;
 import android.util.Log;
-import android.widget.Toast;
 
 public class XMPPService extends Service {
 
@@ -83,10 +81,14 @@ public class XMPPService extends Service {
 
 	public final static String ACTION_SET_SUMMONER_NAME = "action.SET_SUMMONER_NAME";
 
+	public final static String ACTION_ADD_NOTIFICATION = "action.ADD_NOTIFICATION";
+	
+	public final static String ACTION_TEST = "action.TEST";
+	
 	public final static String CONNECTION_STATUS = "CONNECTION_STATUS";
 
 	public final static String SERVICE_THREAD_NAME = "XMPP_THREAD";
-
+	
 	public final static String USER = "USER";
 	public final static String NAME = "NAME";
 	public final static String STATUS = "STATUS";
@@ -184,6 +186,8 @@ public class XMPPService extends Service {
 		} else if (action.equals(ACTION_SEND_GROUP_MESSAGE)) {
 			sendGroupMessage(intent);
 		} else if (action.equals(ACTION_SEND_GROUP_INVITE)) {
+			
+		} else if (action.equals(ACTION_TEST)) {
 			test(intent);
 		}
 	}
@@ -369,21 +373,7 @@ public class XMPPService extends Service {
 			connection.addPacketListener(new PacketListener() {
 				@Override
 				public void processPacket(Packet packet) {
-					Message message = (Message) packet;
-					if (message.getBody() != null) {
-						String fromName = StringUtils.parseBareAddress(message.getFrom());
-						Log.i("XMPPChat ", "Text Recieved " + message.getBody() + " from " +  fromName);
-						//System.out.println(message.getFrom());
-						//System.out.println(fromName);
-						//System.out.println(StringUtils.parseBareAddress(connection.getUser()));
-						//System.out.println(message.toXML());
-
-						Intent intent = new Intent();
-						intent.setAction(ACTION_RECEIVE_MESSAGE);
-						intent.putExtra(USER, fromName);
-						intent.putExtra(MESSAGE, message.getBody());
-						sendBroadcast(intent);
-					}
+					receiveChatMessage(packet);
 				}
 			}, filter);
 
@@ -426,7 +416,7 @@ public class XMPPService extends Service {
 					intent.putExtra(ChatFragment.TYPE, ChatFragment.Type.GROUP);
 
 					sendBroadcast(intent);
-
+					
 					muc.get(packet.getFrom()).addParticipantListener(new PacketListener() { 
 
 						@Override
@@ -777,8 +767,18 @@ public class XMPPService extends Service {
 		}
 		*/
 		
-		Presence p = new Presence(Presence.Type.available);
-		connection.sendPacket(p);
+		//Presence p = new Presence(Presence.Type.available);
+		//connection.sendPacket(p);
+		
+		if (connection == null) System.out.println("NULL");
+		else System.out.println("NOT NULL");
+		
+		if (connection.isConnected()) System.out.println("CON");
+		else System.out.println("NOT CON");
+		System.out.println(connection.isSocketClosed());
+		System.out.println(connection.getConnectionID());
+		System.out.println(connection.toString());
+		
 	}
 	
 	// Check connection status
@@ -799,6 +799,61 @@ public class XMPPService extends Service {
 		}
 		
 	}
+	
+	public void receiveChatMessage(Packet packet) {
+		Message message = (Message) packet;
+		if (message.getBody() != null) {
+			String fromName = StringUtils.parseBareAddress(message.getFrom());
+			Log.i("XMPPChat ", "Text Recieved " + message.getBody() + " from " +  fromName);
+			//System.out.println(message.getFrom());
+			//System.out.println(fromName);
+			//System.out.println(StringUtils.parseBareAddress(connection.getUser()));
+			//System.out.println(message.toXML());
+
+			Intent intent = new Intent();
+			intent.setAction(ACTION_RECEIVE_MESSAGE);
+			intent.putExtra(USER, fromName);
+			intent.putExtra(CHAT_ID, fromName);
+			intent.putExtra(MESSAGE, message.getBody());
+			sendBroadcast(intent);
+		}
+	}
+	
+	public void addMessageNotification(String fromName, String message) {
+		Intent intent = new Intent();
+		intent.setAction(ACTION_ADD_NOTIFICATION);
+		intent.putExtra(USER, fromName);
+		intent.putExtra(MESSAGE, message);
+		sendBroadcast(intent);
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	@Override
 	public IBinder onBind(Intent intent) {
