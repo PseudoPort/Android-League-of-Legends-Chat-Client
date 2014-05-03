@@ -24,16 +24,26 @@ import android.support.v7.app.ActionBarActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.ActionBar;
+import android.util.DisplayMetrics;
+import android.view.DragEvent;
+import android.view.GestureDetector;
+import android.view.GestureDetector.SimpleOnGestureListener;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnDragListener;
 import android.view.View.OnTouchListener;
+import android.view.animation.Animation;
+import android.view.animation.Animation.AnimationListener;
+import android.view.animation.AnimationUtils;
+import android.view.animation.TranslateAnimation;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
+import android.widget.Toast;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -43,7 +53,9 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Resources.NotFoundException;
 import android.os.Bundle;
+import android.os.Handler;
 
 public class MainActivity extends ActionBarActivity implements LoginFragment.OnLoginListener, FriendsListFragment.OnFriendChatClickListener, ChatFragment.OnCreateListener, ChatListFragment.ChatListListener, NotificationFragment.NotificationListListener{
 	public static final String FILENAME = "login_file";
@@ -99,9 +111,12 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	// Notifications
 	NotificationListAdapter notificationListAdapter;
 	ArrayList<Notification> notificationList = new ArrayList<Notification>();
-
+	
 	String activeChat = null;
 
+	// Notification animation
+	int position = 0, positionOld = 0;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -312,8 +327,9 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		// Populate notification list		
 		notificationListAdapter = new NotificationListAdapter(notificationList);
 		if (notificationFragment.notificationListView != null) {
+			
 			notificationFragment.notificationListView.setAdapter(notificationListAdapter);
-
+			
 			// Setup onClick
 			ListView listView = notificationFragment.notificationListView;
 			listView.setOnItemClickListener(new OnItemClickListener() {
@@ -321,36 +337,72 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 				@Override
 				public void onItemClick(AdapterView<?> parent, View view,
 						int position, long id) {
-
-					Notification n = notificationList.get(position);
-
-					switch (n.type) {
-					case 0:
-						openChat(n.id);
-						break;
-					case 1:
-						break;
-					case 2:
-						break;
-					}
+					// Do nothing
 				}
 			});
-			
+
 			// Setup Delete
-			listView.setOnTouchListener(new OnTouchListener() {
+			final GestureDetector gestureDetector = new GestureDetector(this, new NotificationGestureListener());
+			OnTouchListener gestureListener = new OnTouchListener() {
 				
 				@Override
-				public boolean onTouch(View v, MotionEvent event) {
-					System.out.println(v.getId());
-					switch (event.getAction()) {
-					case MotionEvent.ACTION_UP:
+				public boolean onTouch(final View v, MotionEvent event) {
+					
+					if (event.getAction() == MotionEvent.ACTION_UP) {
 						System.out.println("UP");
-					case MotionEvent.ACTION_DOWN:
-						System.out.println("DOWN");
+						//int position = notificationFragment.notificationListView.pointToPosition((int)event.getX(), (int)event.getY());
+						
+						if (position == -1) {
+							position = positionOld;
+						} else {
+							positionOld = position;
+						}
+						
+						final int pos = position;
+						System.out.println("POS: " + pos);
+						try {
+							final float x = notificationFragment.notificationListView.getChildAt(position).getX();
+							
+							final Animation anim = new TranslateAnimation(0f, -x, 0f, 0f);
+							anim.setDuration(400);
+							
+							anim.setAnimationListener(new AnimationListener() {
+								
+								@Override
+								public void onAnimationStart(Animation animation) {
+									notificationFragment.notificationListView.setOnTouchListener(new OnTouchListener() {
+										
+										@Override
+										public boolean onTouch(View v, MotionEvent event) {
+											return false;
+										}
+									});
+								}
+								
+								@Override
+								public void onAnimationRepeat(Animation animation) {
+									
+								}
+								
+								@Override
+								public void onAnimationEnd(Animation animation) {
+									//notificationFragment.notificationListView.getChildAt(pos).setX(0f);
+									System.out.println(pos);
+									onNotificationListCreated();
+								}
+							});
+							notificationFragment.notificationListView.getChildAt(position).startAnimation(anim);
+							
+						} catch (NullPointerException e) {
+							
+						}
+						
 					}
-					return false;
+					
+					return gestureDetector.onTouchEvent(event);
 				}
-			});
+			};
+			listView.setOnTouchListener(gestureListener);
 		}
 	}
 
@@ -415,9 +467,13 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
-		unregisterReceiver(mainReceiver);
-		dialog.dismiss();
-		stopService(new Intent(this, XMPPService.class));
+		try {
+			unregisterReceiver(mainReceiver);
+			dialog.dismiss();
+			stopService(new Intent(this, XMPPService.class));	
+		} catch (Exception e) {
+
+		}
 	}
 
 	@Override
@@ -897,14 +953,17 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 			// Check if chat is open
 			if (activeChat != null) if (activeChat.equals(chatId)) return;
 
+			int unread = 1;
+			
 			// Check if notification exists
 			for (Notification n : notificationList) {
 				if (n.id.equals(chatId)) {
+					unread += n.unread;
 					notificationList.remove(n);
 					break;
 				}
 			}
-			notificationList.add(0, new Notification(title, message, t, type, chatId));
+			notificationList.add(0, new Notification(title, message, t, type, chatId, intent, unread));
 			break;
 		case 1:
 			String from = b.getString(XMPPService.GROUP_FROM);
@@ -918,18 +977,18 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 					break;
 				}
 			}
-			
+
 			if (typ.equals(XMPPService.GroupType.PRIVATE)) {
 				title = "Private";
 			} else {
 				title = "Public";
 			}
-			
+
 			title = title + " Chat Invitation";
-			
+
 			message = groupName;
-			
-			notificationList.add(0, new Notification(title, message, t, type, from));
+
+			notificationList.add(0, new Notification(title, message, t, type, from, intent, 0));
 
 			break;
 		case 2:
@@ -945,17 +1004,120 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		for (Notification n : notificationList) {
 			if (n.id.equals(activeChat)) {
 				notificationList.remove(n);
+				onNotificationListCreated();
 				break;
 			}
 		}
 	}
 
+	class NotificationGestureListener extends SimpleOnGestureListener {
+		DisplayMetrics dm = getResources().getDisplayMetrics();
+		int REL_SWIPE_MIN_DISTANCE = (int)(120.0f * dm.densityDpi / 160.0f + 0.5); 
+		int REL_SWIPE_MAX_OFF_PATH = (int)(250.0f * dm.densityDpi / 160.0f + 0.5);
+		int REL_SWIPE_THRESHOLD_VELOCITY = (int)(200.0f * dm.densityDpi / 160.0f + 0.5);
 
+		boolean delete = false;
+		
+		@Override
+		public boolean onSingleTapUp(MotionEvent e) {
+			System.out.println("SINGLE TAP");
+			int position = notificationFragment.notificationListView.pointToPosition((int)e.getX(), (int)e.getY());
+			Notification n = notificationList.get(position);
+			switch (n.type) {
+			case 0:
+				openChat(n.id);
+				break;
+			case 1:
+				onReceiveGroupInvite(n.intent);
+				break;
+			case 2:
+				break;
+			}
+			return false;
+		}
+		
+		@Override
+		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
+				float velocityY) { 
+			
+			try {
+				if (Math.abs(e1.getY() - e2.getY()) > REL_SWIPE_MAX_OFF_PATH) {
+					return false;
+				}
+				
+				position = notificationFragment.notificationListView.pointToPosition((int)e1.getX(), (int)e1.getY());
+				if (position == -1) {
+					position = positionOld;
+				} else {
+					positionOld = position;
+				}
+				
+				delete = false;
+				Animation anim = null;
+				
+				if(e1.getX() - e2.getX() > REL_SWIPE_MIN_DISTANCE && 
+						Math.abs(velocityX) > REL_SWIPE_THRESHOLD_VELOCITY) {
+					delete = true;
+					anim = AnimationUtils.loadAnimation(context, R.anim.slide_out_left);
+					
+					//notificationList.remove(position);
+					//onNotificationListCreated();
+				}  else if (e2.getX() - e1.getX() > REL_SWIPE_MIN_DISTANCE &&
+						Math.abs(velocityX) > REL_SWIPE_THRESHOLD_VELOCITY) {
+					anim = AnimationUtils.loadAnimation(context, android.R.anim.slide_out_right);
+					delete = true;
+					//notificationList.remove(position);
+					//onNotificationListCreated();
+				}
 
+				if (delete) {
+					System.out.println("STOP");
+					anim.setDuration(300);
+					notificationFragment.notificationListView.getChildAt(position).startAnimation(anim);
+					
+					new Handler().postDelayed(new Runnable() {
+						
+						@Override
+						public void run() {
+							notificationList.remove(position);
+							onNotificationListCreated();
+						}
+					}, anim.getDuration());
+				}
+			} catch (Exception e) {
+				//e.printStackTrace();
+			}
+			
+		
+			
+			return false;
+		}
+		
+		@Override
+		public boolean onScroll(MotionEvent e1, MotionEvent e2,
+				float distanceX, float distanceY) {
+			
+			try {
+				position = notificationFragment.notificationListView.pointToPosition((int)e1.getX(), (int)e1.getY());
+				if (position == -1) {
+					position = positionOld;
+				} else {
+					positionOld = position;
+				}
+				//System.out.println(position + " " + e1.getX() + " " + e1.getY());
+				try {
+					notificationFragment.notificationListView.getChildAt(position).setX(-(e1.getX()-e2.getX()));
+				} catch (Exception e) {
 
+				}
+			} catch (Exception e) {
+				//e.printStackTrace();
+			}
+				
+			return true;
+		}
 
-
-
+	}
 
 
 

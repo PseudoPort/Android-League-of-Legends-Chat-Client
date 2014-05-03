@@ -1,5 +1,7 @@
 package com.example.lolapp;
 
+import com.example.lolapp.adapters.NotificationListAdapter;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
