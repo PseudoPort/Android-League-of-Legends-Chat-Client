@@ -1,6 +1,6 @@
 package com.example.lolapp;
 
-import com.example.lolapp.adapters.NotificationListAdapter;
+import com.example.lolapp.listview.NotificationListAdapter;
 
 import android.app.Activity;
 import android.os.Bundle;

@@ -51,10 +51,15 @@ import org.jivesoftware.smackx.provider.XHTMLExtensionProvider;
 import org.jivesoftware.smackx.search.UserSearch;
 
 import com.example.lolapp.ChatFragment;
+import com.example.lolapp.MainActivity;
 import com.example.lolapp.ChatFragment.Type;
 import com.example.lolapp.utils.DummySSLSocketFactory;
 
+import android.R;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -62,6 +67,8 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.util.Log;
 
 public class XMPPService extends Service {
@@ -82,13 +89,13 @@ public class XMPPService extends Service {
 	public final static String ACTION_SET_SUMMONER_NAME = "action.SET_SUMMONER_NAME";
 
 	public final static String ACTION_ADD_NOTIFICATION = "action.ADD_NOTIFICATION";
-	
+
 	public final static String ACTION_TEST = "action.TEST";
-	
+
 	public final static String CONNECTION_STATUS = "CONNECTION_STATUS";
 
 	public final static String SERVICE_THREAD_NAME = "XMPP_THREAD";
-	
+
 	public final static String USER = "USER";
 	public final static String NAME = "NAME";
 	public final static String STATUS = "STATUS";
@@ -186,7 +193,7 @@ public class XMPPService extends Service {
 		} else if (action.equals(ACTION_SEND_GROUP_MESSAGE)) {
 			sendGroupMessage(intent);
 		} else if (action.equals(ACTION_SEND_GROUP_INVITE)) {
-			
+
 		} else if (action.equals(ACTION_TEST)) {
 			test(intent);
 		}
@@ -402,13 +409,16 @@ public class XMPPService extends Service {
 					String chatName = "";
 
 					String packetXML = packet.toXML();
-					
+
 					if (packet.getFrom().contains("pr~")) {
 						int start = packetXML.indexOf("subject\":\"") + "subject\":\"".length();
 						int end = packetXML.indexOf("\"}");
 						chatName = packetXML.substring(start, end);
 					} else if (packet.getFrom().contains("pu~")) { // FIX HERE
-						chatName = "PUBLIC CHAT";
+						//chatName = "PUBLIC CHAT";
+						int start = packetXML.indexOf("subject\":\"") + "subject\":\"".length();
+						int end = packetXML.indexOf("\"}");
+						chatName = packetXML.substring(start, end);
 					}
 
 					intent.putExtra(GROUP_CHAT_NAME, chatName);
@@ -416,7 +426,7 @@ public class XMPPService extends Service {
 					intent.putExtra(ChatFragment.TYPE, ChatFragment.Type.GROUP);
 
 					sendBroadcast(intent);
-					
+
 					muc.get(packet.getFrom()).addParticipantListener(new PacketListener() { 
 
 						@Override
@@ -499,7 +509,7 @@ public class XMPPService extends Service {
 				}
 
 			}, filter3);
-			
+
 			PacketFilter filter4 = new MessageTypeFilter(Message.Type.headline);
 			connection.addPacketListener(new PacketListener() {
 
@@ -569,7 +579,7 @@ public class XMPPService extends Service {
 			grouplist.add(groupName);
 		}
 		grouplist.add("Offline");
-		
+
 		for (RosterEntry entry : entries) {
 			Presence entryPresence = roster.getPresence(entry.getUser());
 
@@ -591,7 +601,7 @@ public class XMPPService extends Service {
 			} catch (Exception e) {
 				modes.add("null");
 			}
-			
+
 			try {
 				groupName = entry.getGroups().iterator().next().getName();
 				if (groupName.equals("**Default")) groupName = "General";
@@ -600,7 +610,7 @@ public class XMPPService extends Service {
 				groupName = "null";
 				if (!grouplist.contains("null")) grouplist.add("null");
 			}
-			
+
 			if (entryPresence.toString().equals("unavailable")) {
 				groupName = "Offline";
 				isOnline.add("false");
@@ -668,7 +678,7 @@ public class XMPPService extends Service {
 		String user = intent.getExtras().getString(ChatFragment.CHAT_ID);
 		//String name = intent.getExtras().getString(ChatFragment.NAME);
 		String message = intent.getExtras().getString(ChatFragment.MESSAGE);
-		
+
 		sendMessage2(roster.getEntry(user), message);
 	}
 
@@ -728,12 +738,12 @@ public class XMPPService extends Service {
 			muc.remove(from);
 		}
 	}
-	
-	
+
+
 	// TEST METHOD
 	public void test(Intent intent) {
 		String user = intent.getStringExtra("NAME");
-		
+
 		/* Invite to chat - PU/PR
 		MultiUserChat muc2 = new MultiUserChat(connection, "pu~5cfb1678515568c85f8cdea1a8938329f4b4a4e8@lvl.pvp.net");
 		try {
@@ -743,15 +753,15 @@ public class XMPPService extends Service {
 		}
 		muc2.invite("sum54559857@pvp.net", "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\"YOSOYSATANAS666's Chat Room\"}");
 		muc2.invite("sum20459570@pvp.net", "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\"YOSOYSATANAS666's Chat Room\"}");
-		*/
-		
+		 */
+
 		/*
 		Roster r = connection.getRoster();
 		RosterEntry re = r.getEntry("sum54559857@pvp.net");
 		/*try {
 			roster.getGroup("Buddies").addEntry(re);
 			System.out.println("ADDING TO BUDDIES GROUP");
-			
+
 		} catch (Exception e2) {
 			e2.printStackTrace();
 		}*/
@@ -761,26 +771,28 @@ public class XMPPService extends Service {
 		} catch (IllegalArgumentException e1) {
 			System.out.println("GROUP ALREADY EXISTS!");
 		}
-		
+
 		for (RosterGroup g : r.getGroups()) {
 			System.out.println(g.getName());
 		}
-		*/
-		
+		 */
+
 		//Presence p = new Presence(Presence.Type.available);
 		//connection.sendPacket(p);
-		
+
 		if (connection == null) System.out.println("NULL");
 		else System.out.println("NOT NULL");
-		
+
 		if (connection.isConnected()) System.out.println("CON");
 		else System.out.println("NOT CON");
 		System.out.println(connection.isSocketClosed());
 		System.out.println(connection.getConnectionID());
 		System.out.println(connection.toString());
+
 		
+
 	}
-	
+
 	// Check connection status
 	private class ConnectionTest extends Thread implements Runnable {
 
@@ -797,9 +809,9 @@ public class XMPPService extends Service {
 				}
 			}
 		}
-		
+
 	}
-	
+
 	public void receiveChatMessage(Packet packet) {
 		Message message = (Message) packet;
 		if (message.getBody() != null) {
@@ -818,7 +830,7 @@ public class XMPPService extends Service {
 			sendBroadcast(intent);
 		}
 	}
-	
+
 	public void addMessageNotification(String fromName, String message) {
 		Intent intent = new Intent();
 		intent.setAction(ACTION_ADD_NOTIFICATION);
@@ -826,40 +838,40 @@ public class XMPPService extends Service {
 		intent.putExtra(MESSAGE, message);
 		sendBroadcast(intent);
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
 	}
-	
+
 	public void configure(ProviderManager pm) {
 
 		//  Private Data Storage

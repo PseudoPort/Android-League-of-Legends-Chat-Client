@@ -1,4 +1,4 @@
-package com.example.lolapp.adapters;
+package com.example.lolapp.listview;
 
 import java.util.ArrayList;
 

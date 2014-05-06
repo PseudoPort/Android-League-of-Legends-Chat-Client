@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import com.example.lolapp.adapters.ChatListAdapter;
+import com.example.lolapp.listview.ChatListAdapter;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -52,6 +52,7 @@ public class ChatListFragment extends Fragment {
 			@Override
 			public boolean onGroupClick(ExpandableListView parent, View v,
 					int groupPosition, long id) {
+				
 				return true;
 			}
 		});
