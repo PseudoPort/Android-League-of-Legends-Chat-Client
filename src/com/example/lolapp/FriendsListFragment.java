@@ -12,9 +12,13 @@ import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.provider.ProviderManager;
 
 import com.example.lolapp.MainActivity.NotificationGestureListener;
+import com.example.lolapp.NotificationFragment.OnFragmentCreatedListener;
+import com.example.lolapp.listview.FriendListView;
 import com.example.lolapp.listview.FriendsListAdapter;
+import com.example.lolapp.listview.FriendListView.ChangeGroupListener;
 import com.example.lolapp.model.Summoner;
 import com.example.lolapp.utils.DummySSLSocketFactory;
+import com.example.lolapp.xmppservice.XMPPService;
 
 import android.app.Activity;
 import android.content.Context;
@@ -60,10 +64,15 @@ public class FriendsListFragment extends Fragment {
 	ArrayList<String> grouplist;
 
 	OnFriendChatClickListener mCallback;
-
+	
 	Activity activity;
 
 	// Interface
+	OnFragmentCreatedListener mFragmentCallback;
+	public interface OnFragmentCreatedListener {
+		public void onFragmentCreated();
+	}
+	
 	public interface OnFriendChatClickListener {
 		public void onFriendChatClick(String name);
 	}
@@ -73,6 +82,7 @@ public class FriendsListFragment extends Fragment {
 		super.onAttach(activity);
 		this.activity = activity;
 		mCallback = (OnFriendChatClickListener) activity;
+		mFragmentCallback = (OnFragmentCreatedListener) activity;
 	}
 
 	@Override
@@ -111,19 +121,39 @@ public class FriendsListFragment extends Fragment {
 			}
 		});
 
-		// Child drag
-		final GestureDetector gestureDetector = new GestureDetector(activity, new FriendGestureListener());
-		OnTouchListener gestureListener = new OnTouchListener() {
-
+		// Child change group
+		friendsListView.setChangeGroupListener(new ChangeGroupListener() {
+			
 			@Override
-			public boolean onTouch(View v, MotionEvent event) {
-				return gestureDetector.onTouchEvent(event);
+			public void changeGroup(String fromName, String toGroup) {
+				
+				Intent intent = new Intent(activity, XMPPService.class);
+				intent.setAction(XMPPService.ACTION_CHANGE_FRIEND_GROUP);
+				intent.putExtra(XMPPService.GROUP, toGroup);
+				
+				Summoner summoner = null;
+				
+				for (Entry s : summoners.entrySet()) {
+					if (summoners.get(s.getKey()).name.equalsIgnoreCase(fromName)) {
+						summoner = summoners.get(s.getKey());
+						break;
+					}
+				}
+				//System.out.println(summoner.name);
+				if (summoner != null) {
+					intent.putExtra(XMPPService.USER, summoner.user);
+					
+					if (summoner.group.equals(toGroup) || toGroup.equals("Offline")) {
+						return;
+					}
+					activity.startService(intent);
+				}
 			}
-		};
-		//friendsListView.setOnTouchListener(gestureListener);
-
+		});
+		
 		// Set title
 		activity.setTitle("Friend List");
+		mFragmentCallback.onFragmentCreated();
 	}
 
 	@Override
@@ -132,74 +162,6 @@ public class FriendsListFragment extends Fragment {
 		View rootView = inflater.inflate(R.layout.fragment_friendslist, container,
 				false);
 		return rootView;
-	}
-
-	class FriendGestureListener extends SimpleOnGestureListener {
-
-		@Override
-		public void onLongPress(MotionEvent e) {
-
-		}
-
-		int position, positionOld;
-
-		@Override
-		public boolean onScroll(MotionEvent e1, MotionEvent e2,
-				float distanceX, float distanceY) {
-
-			try {
-				position = friendsListView.pointToPosition((int) e1.getX(), (int) e1.getY());
-				if (position == -1) {
-					position = positionOld;
-				} else {
-					positionOld = position;
-				}
-
-				try {
-					View v = friendsListView.getChildAt(position);
-					//v.setX(-(e1.getX()-e2.getX()));
-					//v.setY(-(e1.getY()-e2.getY()));
-					v.setDrawingCacheEnabled(true);
-					Bitmap bm = Bitmap.createBitmap(v.getDrawingCache());
-					
-					ImageView iv = new ImageView(activity);
-					iv.setImageBitmap(bm);
-					iv.setPadding(0, 0, 0, 0);
-					iv.setBackgroundColor(Color.GRAY);
-					
-					LayoutParams mWindowParams = new WindowManager.LayoutParams();
-			        mWindowParams.gravity = Gravity.TOP | Gravity.LEFT;
-			        //mWindowParams.x = x - mDragPointX + mXOffset;
-			        //mWindowParams.y = y - mDragPointY + mYOffset;
-			        
-			        mWindowParams.x = (int) e2.getX();
-			        mWindowParams.y = (int) e2.getY();
-			        
-			        mWindowParams.height = WindowManager.LayoutParams.WRAP_CONTENT;
-			        mWindowParams.width = WindowManager.LayoutParams.WRAP_CONTENT;
-			        mWindowParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-			                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-			                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-			                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-			                | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
-			        mWindowParams.format = PixelFormat.TRANSLUCENT;
-			        mWindowParams.windowAnimations = 0;
-					
-					WindowManager wm = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
-					wm.addView(iv, mWindowParams);
-					
-					//iv.setX(-(e1.getX()-e2.getX()));
-					//iv.setY(-(e1.getY()-e2.getY()));
-					
-				} catch (Exception e) {
-
-				}
-			} catch (Exception e) {
-				//e.printStackTrace();
-			}
-			return false;
-		}
-
 	}
 
 }

@@ -1,4 +1,7 @@
-package com.example.lolapp;
+package com.example.lolapp.listview;
+
+import com.example.lolapp.R;
+import com.example.lolapp.R.id;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -16,6 +19,8 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.ExpandableListView;
 import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.TextView;
 
 public class FriendListView extends ExpandableListView {
 
@@ -37,7 +42,11 @@ public class FriendListView extends ExpandableListView {
 	private Bitmap mDragBitmap;
 
 	boolean longPressed = false;
-
+	
+	private int mParPos;
+	
+	private ChangeGroupListener mChangeGroupListener = null;
+	
 	public FriendListView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 	}
@@ -59,8 +68,21 @@ public class FriendListView extends ExpandableListView {
 
 					int position = pointToPosition(x, y);
 					if (position == AdapterView.INVALID_POSITION) {
-
+						return;
 					}
+					
+					// Check if view is header or off line
+					if (getChildAt(position - getFirstVisiblePosition()).findViewById(R.id.friendsListHeader) != null) {
+						longPressed = false;
+						// Do long press on group
+						return;
+					} else {
+						if (((TextView)getChildAt(position - getFirstVisiblePosition()).findViewById(R.id.status)).getText().equals("Offline")) {
+							longPressed = false;
+							return;
+						}
+					}
+					
 					ViewGroup item = (ViewGroup) getChildAt(position - getFirstVisiblePosition());
 					mDragPointX = x - item.getLeft();
 					mDragPointY = y - item.getTop();
@@ -89,6 +111,16 @@ public class FriendListView extends ExpandableListView {
 
 		if (ev.getAction() == MotionEvent.ACTION_UP) {
 			longPressed = false;
+			// On change group listener
+			if (mChangeGroupListener != null) {
+				try {
+					String userId = ((TextView)getChildAt(mSrcDragPos).findViewById(R.id.friendName)).getText().toString();
+					String groupName = ((TextView)getChildAt(mParPos).findViewById(R.id.friendsListHeader)).getText().toString();
+					mChangeGroupListener.changeGroup(userId, groupName);
+				} catch (Exception e) {
+					
+				}
+			}
 			stopDragging();
 		}
 
@@ -101,7 +133,29 @@ public class FriendListView extends ExpandableListView {
 				int x = (int) ev.getX();
 				int y = (int) ev.getY();
 				
-				System.out.println(mSrcDragPos + " " + pointToPosition(x, y));
+				
+				//System.out.println(mSrcDragPos + " " + pointToPosition(x, y));
+				
+				int mCurPos = pointToPosition(x, y) - getFirstVisiblePosition();
+				
+				if (pointToPosition(x, y) != ListView.INVALID_POSITION) {
+					
+					int tempParPos = mCurPos;
+					while (getChildAt(tempParPos).findViewById(R.id.friendName) != null) {
+						tempParPos--;
+					}
+					
+					mParPos = tempParPos;
+					
+					//System.out.println(mParPos);
+					
+					View v = getChildAt(mCurPos);
+					if (v.findViewById(R.id.friendName) == null) {
+						//System.out.println("HEADER");
+					} else {
+						//System.out.println("CHILD");
+					}
+				}
 				
 				dragView(x, y);
 			}
@@ -109,8 +163,6 @@ public class FriendListView extends ExpandableListView {
 
 		return super.onTouchEvent(ev);
 	}
-
-
 
 	private void startDragging(Bitmap bm, int x, int y) {
 		stopDragging();
@@ -164,8 +216,12 @@ public class FriendListView extends ExpandableListView {
 			mDragBitmap = null;
 		}
 	}
-
-
-
-
+	
+	public void setChangeGroupListener(ChangeGroupListener l) {
+		mChangeGroupListener = l;
+	}
+	
+	public interface ChangeGroupListener {
+		void changeGroup(String fromName, String toGroup);
+	}
 }

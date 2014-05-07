@@ -1,5 +1,9 @@
 package com.example.lolapp;
 
+import com.example.lolapp.FriendsListFragment.OnFragmentCreatedListener;
+import com.example.lolapp.FriendsListFragment.OnFriendChatClickListener;
+
+import android.app.Activity;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -17,6 +21,20 @@ public class HomeFragment extends Fragment {
 	// Views
 	TextView summonerText;
 	
+	Activity activity;
+	
+	// Interface
+	OnFragmentCreatedListener mFragmentCallback;
+	public interface OnFragmentCreatedListener {
+		public void onFragmentCreated();
+	}
+	
+	@Override
+	public void onAttach(Activity activity) {
+		super.onAttach(activity);
+		this.activity = activity;
+		mFragmentCallback = (OnFragmentCreatedListener) activity;
+	}
 	
 	@Override
 	public void onViewCreated(View view, Bundle savedInstanceState) {
@@ -25,6 +43,7 @@ public class HomeFragment extends Fragment {
 		
 		summonerText = (TextView) view.findViewById(R.id.summonerName);
 		setSummonerName(summonerName);
+		mFragmentCallback.onFragmentCreated();
 	}
 	
 	@Override

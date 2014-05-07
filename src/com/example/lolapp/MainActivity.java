@@ -13,8 +13,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
-import org.apache.commons.codec.digest.DigestUtils;
-
 import com.example.lolapp.listview.ChatListAdapter;
 import com.example.lolapp.listview.FriendsListAdapter;
 import com.example.lolapp.listview.NotificationListAdapter;
@@ -26,13 +24,12 @@ import com.example.lolapp.xmppservice.XMPPService;
 import com.example.lolapp.xmppservice.XMPPService.GroupType;
 
 import android.support.v7.app.ActionBarActivity;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentManager.OnBackStackChangedListener;
 import android.support.v4.app.FragmentTransaction;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.ActionBar;
 import android.util.DisplayMetrics;
-import android.view.DragEvent;
 import android.view.GestureDetector;
 import android.view.GestureDetector.SimpleOnGestureListener;
 import android.view.Menu;
@@ -40,8 +37,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.View.OnClickListener;
-import android.view.View.OnDragListener;
 import android.view.View.OnTouchListener;
 import android.view.animation.Animation;
 import android.view.animation.Animation.AnimationListener;
@@ -50,35 +45,44 @@ import android.view.animation.TranslateAnimation;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
-import android.widget.Toast;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.res.Resources.NotFoundException;
 import android.os.Bundle;
 import android.os.Handler;
 
-public class MainActivity extends ActionBarActivity implements LoginFragment.OnLoginListener, FriendsListFragment.OnFriendChatClickListener, ChatFragment.OnCreateListener, ChatListFragment.ChatListListener, NotificationFragment.NotificationListListener{
+public class MainActivity extends ActionBarActivity implements LoginFragment.OnLoginListener, FriendsListFragment.OnFriendChatClickListener, ChatFragment.OnCreateListener, ChatListFragment.ChatListListener, NotificationFragment.NotificationListListener, 
+																LoginFragment.OnFragmentCreatedListener, FriendsListFragment.OnFragmentCreatedListener, HomeFragment.OnFragmentCreatedListener, NotificationFragment.OnFragmentCreatedListener, ChatFragment.OnFragmentCreatedListener,
+																ChatListFragment.OnFragmentCreatedListener {
 	public static final String FILENAME = "login_file";
 
 	public static final String HOST = "chat.na1.lol.riotgames.com";
 	public static final int PORT = 5223;
 	public static final String SERVICE = "pvp.net";
-
+	
+	public static final String FRAGMENT_LOGIN = "login";
+	public static final String FRAGMENT_HOME = "home";
+	public static final String FRAGMENT_FRIEND_LIST = "friendlist";
+	public static final String FRAGMENT_CHAT_LIST = "chatlist";
+	public static final String FRAGMENT_CHAT = "chat";
+	public static final String FRAGMENT_SETTINGS = "settings";
+	public static final String FRAGMENT_NOTIFICATIONS = "notifications";
+	
 	MainReceiver mainReceiver;
 
 	Activity activity = this;
 
 	ActionBar actionBar;
-
+	
+	Menu optionsMenu = null;
+	MenuInflater inflater = null;
+	
 	// Update in game time
 	boolean updateInGameTime;
 	Thread updateFriends = null;
@@ -136,7 +140,6 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		if (savedInstanceState == null) {
 			// Initialize FragmentManager
 			fragmentManager = getSupportFragmentManager();
-			fragmentTransaction = fragmentManager.beginTransaction();
 
 			// Initialize Fragments
 			loginFragment = new LoginFragment();
@@ -146,9 +149,8 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 			homeFragment = new HomeFragment();
 			notificationFragment = new NotificationFragment();
 
-			// Set fragment view 			
-			fragmentTransaction.add(android.R.id.content, loginFragment);
-			fragmentTransaction.commit();
+			// Set fragment view
+			openLogin();
 
 			// Hide split action bar
 		}
@@ -184,9 +186,15 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	// On action bar select	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		MenuInflater inflater = getMenuInflater();
-		inflater.inflate(R.menu.activity_main_actions, menu);
-
+		optionsMenu = menu;
+		inflater = getMenuInflater();
+		if (getSupportFragmentManager().findFragmentByTag(FRAGMENT_LOGIN) != null) { 
+			inflater.inflate(R.menu.main, menu);
+		} else if (getSupportFragmentManager().findFragmentByTag(FRAGMENT_CHAT) != null) {
+			inflater.inflate(R.menu.main, menu);
+		} else {
+			inflater.inflate(R.menu.activity_main_actions, menu);
+		}
 		return super.onCreateOptionsMenu(menu);
 	}
 
@@ -504,6 +512,8 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		Intent intent = new Intent(this, XMPPService.class);
 		intent.setAction(XMPPService.ACTION_TEST);
 		startService(intent);
+		
+		ActivityCompat.invalidateOptionsMenu(this);
 		return super.onSearchRequested();
 	}
 
@@ -556,7 +566,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	public void openFriendList() {
 		friendListFragment = new FriendsListFragment();
 		fragmentTransaction = fragmentManager.beginTransaction();
-		fragmentTransaction.replace(android.R.id.content, friendListFragment);
+		fragmentTransaction.replace(android.R.id.content, friendListFragment, FRAGMENT_FRIEND_LIST);
 		fragmentTransaction.commit();
 		updateRoster();
 	}
@@ -564,7 +574,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	public void openChatList() {
 		chatListFragment = new ChatListFragment();
 		fragmentTransaction = fragmentManager.beginTransaction();
-		fragmentTransaction.replace(android.R.id.content, chatListFragment);
+		fragmentTransaction.replace(android.R.id.content, chatListFragment, FRAGMENT_CHAT_LIST);
 		fragmentTransaction.commit();
 	}
 
@@ -576,14 +586,14 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		homeFragment.setArguments(b);
 
 		fragmentTransaction = fragmentManager.beginTransaction();
-		fragmentTransaction.replace(android.R.id.content, homeFragment);
+		fragmentTransaction.replace(android.R.id.content, homeFragment, FRAGMENT_HOME);
 		fragmentTransaction.commit();
 	}
 
 	public void openNotifications() {
 		notificationFragment = new NotificationFragment();
 		fragmentTransaction = fragmentManager.beginTransaction();
-		fragmentTransaction.replace(android.R.id.content, notificationFragment);
+		fragmentTransaction.replace(android.R.id.content, notificationFragment, FRAGMENT_NOTIFICATIONS);
 		fragmentTransaction.commit();
 	}
 
@@ -592,7 +602,10 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 	}
 
 	public void openLogin() {
-
+		loginFragment = new LoginFragment();
+		fragmentTransaction = fragmentManager.beginTransaction();
+		fragmentTransaction.replace(android.R.id.content, loginFragment, FRAGMENT_LOGIN);
+		fragmentTransaction.commit();
 	}
 
 	public void openChat(String chatId) {
@@ -619,8 +632,9 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		// Switch fragment
 		fragmentTransaction = fragmentManager.beginTransaction();
 		//fragmentTransaction.replace(android.R.id.content, chatTemp, "chatTag").addToBackStack("main_chat_tag");
-		fragmentTransaction.replace(android.R.id.content, chatTemp, "chatFragment");
+		fragmentTransaction.replace(android.R.id.content, chatTemp, FRAGMENT_CHAT);
 		fragmentTransaction.commit();
+		ActivityCompat.invalidateOptionsMenu(this);
 	}
 
 	// Functions
@@ -928,7 +942,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 
 	@SuppressLint("SimpleDateFormat")
 	public void addNotification(Intent intent, int type) {
-		if (fragmentManager.findFragmentByTag("chatFragment") == null) activeChat = null;
+		if (fragmentManager.findFragmentByTag(FRAGMENT_CHAT) == null) activeChat = null;
 
 		Bundle b = intent.getExtras();
 
@@ -1129,6 +1143,7 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 
 	}
 
+	
 
 	public String sha1(String s) {
 		MessageDigest digest = null;
@@ -1140,6 +1155,11 @@ public class MainActivity extends ActionBarActivity implements LoginFragment.OnL
 		digest.reset();
 		byte[] data = digest.digest(s.getBytes());
 		return String.format("%0" + (data.length*2) + "X", new BigInteger(1, data)).toLowerCase();
+	}
+
+	@Override
+	public void onFragmentCreated() {
+		ActivityCompat.invalidateOptionsMenu(this);
 	}
 
 

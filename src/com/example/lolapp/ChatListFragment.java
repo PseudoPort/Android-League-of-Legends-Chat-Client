@@ -4,12 +4,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.example.lolapp.FriendsListFragment.OnFragmentCreatedListener;
 import com.example.lolapp.listview.ChatListAdapter;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v7.view.ActionMode;
+import android.support.v7.view.ActionMode.Callback;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ExpandableListView;
@@ -22,10 +28,15 @@ public class ChatListFragment extends Fragment {
 	ExpandableListView chatListView;
 	TextView textView1;
 
-	Activity activity;
+	MainActivity activity;
 	ChatListListener mCallback;
-
+	
 	// Interface
+	OnFragmentCreatedListener mFragmentCallback;
+	public interface OnFragmentCreatedListener {
+		public void onFragmentCreated();
+	}
+	
 	public interface ChatListListener {
 		public void onChatListCreated();
 		public void onChatListClick(String chatId);
@@ -34,8 +45,9 @@ public class ChatListFragment extends Fragment {
 	@Override
 	public void onAttach(Activity activity) {
 		super.onAttach(activity);
-		this.activity = activity;
+		this.activity = (MainActivity) activity;
 		mCallback = (ChatListListener) activity;
+		mFragmentCallback = (OnFragmentCreatedListener) activity;
 	}
 
 
@@ -71,8 +83,10 @@ public class ChatListFragment extends Fragment {
 				return true;
 			}
 		});
-
+		
+		// Callback
 		mCallback.onChatListCreated();
+		mFragmentCallback.onFragmentCreated();
 	}
 
 

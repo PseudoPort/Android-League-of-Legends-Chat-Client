@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 
+import com.example.lolapp.FriendsListFragment.OnFragmentCreatedListener;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -47,6 +49,11 @@ public class LoginFragment extends Fragment {
 	Intent serviceIntent;
 	
 	// Interface
+	OnFragmentCreatedListener mFragmentCallback;
+	public interface OnFragmentCreatedListener {
+		public void onFragmentCreated();
+	}
+	
 	public interface OnLoginListener {
 		public void onLogin(String username, String password, boolean remember, boolean automatic);
 	}
@@ -56,6 +63,7 @@ public class LoginFragment extends Fragment {
 		super.onAttach(activity);
 
 		mCallback = (OnLoginListener) activity;
+		mFragmentCallback = (OnFragmentCreatedListener) activity;
 	}
 
 	@Override
@@ -120,6 +128,7 @@ public class LoginFragment extends Fragment {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		mFragmentCallback.onFragmentCreated();
 	}
 
 	public void login(final String un, final String pw) {

@@ -1,5 +1,6 @@
 package com.example.lolapp;
 
+import com.example.lolapp.FriendsListFragment.OnFragmentCreatedListener;
 import com.example.lolapp.listview.NotificationListAdapter;
 
 import android.app.Activity;
@@ -18,6 +19,11 @@ public class NotificationFragment extends Fragment {
 	ListView notificationListView;
 	
 	// Interface
+	OnFragmentCreatedListener mFragmentCallback;
+	public interface OnFragmentCreatedListener {
+		public void onFragmentCreated();
+	}
+	
 	public interface NotificationListListener {
 		public void onNotificationListCreated();
 		//public void onChatListClick(String chatId);
@@ -28,6 +34,7 @@ public class NotificationFragment extends Fragment {
 		super.onAttach(activity);
 		this.activity = activity;
 		mCallback = (NotificationListListener) activity;
+		mFragmentCallback = (OnFragmentCreatedListener) activity;
 	}
 	
 	@Override
@@ -38,6 +45,7 @@ public class NotificationFragment extends Fragment {
 		
 		notificationListView = (ListView) view.findViewById(R.id.notificationListView);
 		mCallback.onNotificationListCreated();
+		mFragmentCallback.onFragmentCreated();
 	}
 
 	@Override

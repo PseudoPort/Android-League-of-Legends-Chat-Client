@@ -89,7 +89,9 @@ public class XMPPService extends Service {
 	public final static String ACTION_SET_SUMMONER_NAME = "action.SET_SUMMONER_NAME";
 
 	public final static String ACTION_ADD_NOTIFICATION = "action.ADD_NOTIFICATION";
-
+	
+	public final static String ACTION_CHANGE_FRIEND_GROUP = "action.CHANGE_FRIEND_GROUP";
+	
 	public final static String ACTION_TEST = "action.TEST";
 
 	public final static String CONNECTION_STATUS = "CONNECTION_STATUS";
@@ -115,7 +117,7 @@ public class XMPPService extends Service {
 	public final static String SENDER = "SENDER";
 
 	public final static String INVITE_RESPONSE = "INVITE_RESPONSE";
-
+	
 	public enum GroupType {
 		NORMAL, PRIVATE, PUBLIC
 	}
@@ -194,6 +196,8 @@ public class XMPPService extends Service {
 			sendGroupMessage(intent);
 		} else if (action.equals(ACTION_SEND_GROUP_INVITE)) {
 
+		} else if (action.equals(ACTION_CHANGE_FRIEND_GROUP)) {
+			changeFriendGroup(intent);
 		} else if (action.equals(ACTION_TEST)) {
 			test(intent);
 		}
@@ -739,7 +743,25 @@ public class XMPPService extends Service {
 		}
 	}
 
-
+	// Change friend group
+	public void changeFriendGroup(Intent intent) {
+		String summonerId = intent.getStringExtra(USER);
+		String groupName = intent.getStringExtra(GROUP);
+		
+		if (groupName.equals("General")) {
+			groupName = "**Default";
+		}
+		
+		RosterEntry re = roster.getEntry(summonerId); // cannot add to empty group
+		try {
+			roster.getGroup(groupName).addEntry(re);
+			updateRoster();
+		} catch (Exception e2) {
+			e2.printStackTrace();
+		}
+	}
+	
+	
 	// TEST METHOD
 	public void test(Intent intent) {
 		String user = intent.getStringExtra("NAME");

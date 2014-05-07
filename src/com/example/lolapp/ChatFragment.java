@@ -1,5 +1,6 @@
 package com.example.lolapp;
 
+import com.example.lolapp.FriendsListFragment.OnFragmentCreatedListener;
 import com.example.lolapp.xmppservice.XMPPService;
 
 import android.app.Activity;
@@ -43,6 +44,11 @@ public class ChatFragment extends Fragment {
 	OnCreateListener mCallback;
 	
 	// Interface
+	OnFragmentCreatedListener mFragmentCallback;
+	public interface OnFragmentCreatedListener {
+		public void onFragmentCreated();
+	}
+	
 	public interface OnCreateListener {
 		public void onCreate(String user);
 	}
@@ -52,6 +58,7 @@ public class ChatFragment extends Fragment {
 		super.onAttach(activity);
 		this.activity = activity;
 		mCallback = (OnCreateListener) activity;
+		mFragmentCallback = (OnFragmentCreatedListener) activity;
 	}
 	
 	@Override
