@@ -754,8 +754,15 @@ public class XMPPService extends Service {
 			}
 		}
 		
-		// Invite user
-		chat.invite(user, "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\""+chatName+"\"}");
+		// Invite users
+		for (String s : user.split(",")) {
+			chat.invite(s, "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\""+chatName+"\"}");
+		}
+		
+		Intent intent2 = new Intent();
+		intent2.setAction(ACTION_SEND_GROUP_INVITE);
+		intent2.putExtra(CHAT_ID, chatId);
+		sendBroadcast(intent2);
 		
 		/*
 		

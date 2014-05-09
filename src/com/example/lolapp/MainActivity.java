@@ -117,7 +117,8 @@ ChatListFragment.OnFragmentCreatedListener {
 	String username, password;
 	Context context = this;
 	ProgressDialog dialog = null;
-
+	ProgressDialog dialog2 = null;
+	
 	// Friends List
 	HashMap<String, Summoner> summoners = new HashMap<String, Summoner>();
 
@@ -164,8 +165,10 @@ ChatListFragment.OnFragmentCreatedListener {
 
 			// Set fragment view
 			openLogin();
-
+			
 			// Hide split action bar
+			
+			
 		}
 
 
@@ -913,7 +916,11 @@ ChatListFragment.OnFragmentCreatedListener {
 	}
 
 	public void onSendGroupInvite(Intent intent) {
-
+		String chatId = intent.getStringExtra(XMPPService.CHAT_ID);
+		
+		dialog2.dismiss();
+		
+		openChat(chatId);
 	}
 
 	public void onReceiveGroupInvite(final Intent intent) {
@@ -987,6 +994,7 @@ ChatListFragment.OnFragmentCreatedListener {
 			chatData.put(from, new ChatData(groupName, type));
 			//System.out.println(from);
 			//openChatList();
+			openChat(from);
 			if (type.equals(GroupType.PRIVATE)) {
 
 			} else {
@@ -1212,7 +1220,8 @@ ChatListFragment.OnFragmentCreatedListener {
 		input.setLayoutParams(lp);
 		input.setImeActionLabel("Done", EditorInfo.IME_ACTION_NONE);
 		input.setSingleLine();
-		
+
+		dialog2 = ProgressDialog.show(this, "Group Chat", "Creating group chat", false);
 		
 		AlertDialog.Builder builder = new AlertDialog.Builder(context);
 		builder.setView(input)
@@ -1235,12 +1244,15 @@ ChatListFragment.OnFragmentCreatedListener {
 				for (String s : groupList) {
 					Summoner summoner = summoners.get(s);
 					user = summoner.user;
-					intent.putExtra(XMPPService.USER, user);
-					intent.putExtra(XMPPService.CHAT_ID, "pu~" + chatId + "5cfb1678515568c85f8cdea1a8938329f4b4a4e8" + "@lvl.pvp.net");
-					intent.putExtra(XMPPService.GROUP_CHAT_NAME, chatName);
-					
-					startService(intent);
+					intent.putExtra(XMPPService.USER, intent.getStringExtra(XMPPService.USER) + "," + user);
 				}
+				
+				intent.putExtra(XMPPService.CHAT_ID, "pu~" + chatId + "@lvl.pvp.net");
+				intent.putExtra(XMPPService.GROUP_CHAT_NAME, chatName);
+				
+				startService(intent);
+				
+				dialog2.show();
 			}
 		})
 		.setNegativeButton("Cancel", new OnClickListener() {
