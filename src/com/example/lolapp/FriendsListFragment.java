@@ -29,13 +29,20 @@ import android.graphics.PixelFormat;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v7.widget.PopupMenu;
+import android.support.v7.widget.PopupMenu.OnMenuItemClickListener;
 import android.util.Log;
+import android.view.ContextMenu;
+import android.view.ContextMenu.ContextMenuInfo;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.GestureDetector.SimpleOnGestureListener;
+import android.view.View.OnLongClickListener;
 import android.view.View.OnTouchListener;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -75,6 +82,8 @@ public class FriendsListFragment extends Fragment {
 	
 	public interface OnFriendChatClickListener {
 		public void onFriendChatClick(String name);
+		public void onFriendGroupClick(ExpandableListView parent, View v,
+				int groupPosition, long id);
 	}
 
 	@Override
@@ -148,6 +157,30 @@ public class FriendsListFragment extends Fragment {
 					}
 					activity.startService(intent);
 				}
+			}
+		});
+		
+		// Group Click
+		friendsListView.setOnGroupClickListener(new OnGroupClickListener() {
+			
+			@Override
+			public boolean onGroupClick(ExpandableListView parent, View v,
+					int groupPosition, long id) {
+				System.out.println(listHeader.get(groupPosition) + " " + listChildren.get(listHeader.get(groupPosition)).size());
+				String groupName = listHeader.get(groupPosition);
+				
+				if (groupName.equals("Offline")) {
+					return false;
+				}
+				
+				// return if empty group
+				if (listChildren.get(groupName).size() == 0) {
+					return false;
+				}
+				
+				mCallback.onFriendGroupClick(parent, v, groupPosition, id);
+				
+				return true;
 			}
 		});
 		

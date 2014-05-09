@@ -996,8 +996,10 @@ containing a value of this type.
         public static final int action_context_bar=0x7f05001d;
         public static final int action_friendlist=0x7f050052;
         public static final int action_home=0x7f050053;
+        public static final int action_invite=0x7f050056;
         public static final int action_menu_divider=0x7f050016;
         public static final int action_menu_presenter=0x7f050017;
+        public static final int action_message=0x7f050057;
         public static final int action_mode_close_button=0x7f050024;
         public static final int action_notifications=0x7f050055;
         public static final int action_settings=0x7f050051;
@@ -1122,19 +1124,22 @@ containing a value of this type.
         public static final int abc_search_dropdown_item_icons_2line=0x7f030015;
         public static final int abc_search_view=0x7f030016;
         public static final int activity_main=0x7f030017;
-        public static final int fragment_chat=0x7f030018;
-        public static final int fragment_chatlist=0x7f030019;
-        public static final int fragment_friendslist=0x7f03001a;
-        public static final int fragment_home=0x7f03001b;
-        public static final int fragment_login=0x7f03001c;
-        public static final int fragment_notifications=0x7f03001d;
-        public static final int friendslist_group=0x7f03001e;
-        public static final int friendslist_item=0x7f03001f;
-        public static final int support_simple_spinner_dropdown_item=0x7f030020;
+        public static final int dialog_message=0x7f030018;
+        public static final int fragment_chat=0x7f030019;
+        public static final int fragment_chatlist=0x7f03001a;
+        public static final int fragment_friendslist=0x7f03001b;
+        public static final int fragment_home=0x7f03001c;
+        public static final int fragment_login=0x7f03001d;
+        public static final int fragment_notifications=0x7f03001e;
+        public static final int friendslist_group=0x7f03001f;
+        public static final int friendslist_item=0x7f030020;
+        public static final int support_simple_spinner_dropdown_item=0x7f030021;
     }
     public static final class menu {
         public static final int activity_main_actions=0x7f0c0000;
-        public static final int main=0x7f0c0001;
+        public static final int empty=0x7f0c0001;
+        public static final int friend_group_actions=0x7f0c0002;
+        public static final int main=0x7f0c0003;
     }
     public static final class string {
         /**  Content description for the action bar "home" affordance. [CHAR LIMIT=NONE] 

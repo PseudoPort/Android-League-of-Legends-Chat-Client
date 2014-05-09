@@ -89,11 +89,10 @@ public class ChatFragment extends Fragment {
 				else if (type == Type.GROUP) intent.setAction(XMPPService.ACTION_SEND_GROUP_MESSAGE);
 				else return;
 				
-				intent.putExtra(CHAT_ID, chatId);
-				intent.putExtra(NAME, name);
-				intent.putExtra(MESSAGE, message);
+				intent.putExtra(CHAT_ID, chatId); // Username
+				intent.putExtra(NAME, name); // Recipient name
+				intent.putExtra(MESSAGE, message); // Message
 				activity.startService(intent);
-				
 			}
 		});
 		
@@ -116,6 +115,7 @@ public class ChatFragment extends Fragment {
 		});
 		
 		mCallback.onCreate(chatId);
+		mFragmentCallback.onFragmentCreated();
 		
 		activity.setTitle(name);
 		

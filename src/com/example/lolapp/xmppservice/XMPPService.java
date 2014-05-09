@@ -195,7 +195,7 @@ public class XMPPService extends Service {
 		} else if (action.equals(ACTION_SEND_GROUP_MESSAGE)) {
 			sendGroupMessage(intent);
 		} else if (action.equals(ACTION_SEND_GROUP_INVITE)) {
-
+			sendGroupInvite(intent);
 		} else if (action.equals(ACTION_CHANGE_FRIEND_GROUP)) {
 			changeFriendGroup(intent);
 		} else if (action.equals(ACTION_TEST)) {
@@ -707,7 +707,65 @@ public class XMPPService extends Service {
 
 		sendBroadcast(i);
 	}
-
+	
+	// Send group chat invite
+	// TODO: Check if chat exists, then invite users (may need to create chat in main activity?)
+	public void sendGroupInvite(Intent intent) {
+		// Invite to chat - PU/PR
+		String user = intent.getStringExtra(USER);
+		String chatId = intent.getStringExtra(CHAT_ID); // pu/pr~asddsadasdasddsas@lvl.pvp.net/conference.pvp.net
+		String chatName = intent.getStringExtra(GROUP_CHAT_NAME); // MY CHAT ROOM
+		
+		MultiUserChat chat = null;
+		if (muc.containsKey(chatId)) { // Chat exists!
+			//System.out.println("EXISTS");
+			chat = muc.get(chatId);
+			
+			if (chat.getOccupantsCount() == 0) {
+				try {
+					chat.join(connection.getUser());
+				} catch (XMPPException e) {
+					//e.printStackTrace();
+				}
+			}
+		} else { // Create chat, then invite
+			//System.out.println("NEW!");
+			chat = new MultiUserChat(connection, chatId);
+			muc.put(chatId, chat);
+			chat = muc.get(chatId);
+			
+			try {
+				chat.join(connection.getUser());
+			} catch (XMPPException e) {
+				//e.printStackTrace();
+			}
+			
+			// Join room
+			if (muc.get(chatId).getOccupantsCount() > 0) {
+				// Send broadcast to add group chat
+				Intent i = new Intent();
+				i.setAction(ACTION_UPDATE_GROUP_CHAT);
+				i.putExtra(GROUP_FROM, chatId); // Id
+				i.putExtra(INVITE_RESPONSE, true);
+				i.putExtra(GROUP_TYPE, GroupType.PUBLIC);
+				i.putExtra(GROUP_CHAT_NAME, chatName);
+				i.putExtra(ChatFragment.TYPE, ChatFragment.Type.GROUP);
+				sendBroadcast(i);
+			}
+		}
+		
+		// Invite user
+		chat.invite(user, "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\""+chatName+"\"}");
+		
+		/*
+		
+		System.out.println(muc2.getOccupantsCount());
+		*/
+		
+		//muc2.invite("sum54559857@pvp.net", "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\"YOSOYSATANAS666's Chat Room\"}");
+		//muc2.invite("sum20459570@pvp.net", "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\"YOSOYSATANAS666's Chat Room\"}");
+	}
+	
 	// Join/Decline Chat
 	public void inviteResponse(Intent intent) {
 		Bundle b = intent.getExtras();
