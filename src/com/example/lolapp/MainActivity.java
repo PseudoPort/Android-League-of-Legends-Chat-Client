@@ -24,6 +24,7 @@ import com.example.lolapp.model.Notification;
 import com.example.lolapp.xmppservice.XMPPService;
 import com.example.lolapp.xmppservice.XMPPService.GroupType;
 
+import android.support.v7.app.ActionBar.LayoutParams;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentManager;
@@ -35,6 +36,8 @@ import android.support.v7.widget.PopupMenu.OnMenuItemClickListener;
 import android.util.DisplayMetrics;
 import android.view.GestureDetector;
 import android.view.GestureDetector.SimpleOnGestureListener;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -95,6 +98,7 @@ ChatListFragment.OnFragmentCreatedListener {
 
 	Menu optionsMenu = null;
 	MenuInflater inflater = null;
+	LayoutInflater mLayoutInflater = null;
 
 	// Update in game time
 	boolean updateInGameTime;
@@ -149,8 +153,10 @@ ChatListFragment.OnFragmentCreatedListener {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
+		// Setup Action bar
 		actionBar = getSupportActionBar();
-
+		actionBar.setDisplayShowCustomEnabled(true);
+				
 		if (savedInstanceState == null) {
 			// Initialize FragmentManager
 			fragmentManager = getSupportFragmentManager();
@@ -204,12 +210,19 @@ ChatListFragment.OnFragmentCreatedListener {
 	public boolean onCreateOptionsMenu(Menu menu) {
 		optionsMenu = menu;
 		inflater = getMenuInflater();
+		mLayoutInflater = getLayoutInflater();
+		
 		if (getSupportFragmentManager().findFragmentByTag(FRAGMENT_LOGIN) != null) { 
 			inflater.inflate(R.menu.empty, menu);
 		} else if (getSupportFragmentManager().findFragmentByTag(FRAGMENT_CHAT) != null) {
 			inflater.inflate(R.menu.empty, menu);
+			actionBarChat();
+		} else if (getSupportFragmentManager().findFragmentByTag(FRAGMENT_CHAT_LIST) != null) {
+			inflater.inflate(R.menu.activity_main_actions, menu);
+			actionBarChatList();
 		} else {
 			inflater.inflate(R.menu.activity_main_actions, menu);
+			actionBar.setCustomView(null);
 		}
 		return super.onCreateOptionsMenu(menu);
 	}
@@ -237,6 +250,92 @@ ChatListFragment.OnFragmentCreatedListener {
 		}
 	}
 
+	// Setup action bar
+	public void actionBarChatList() {
+		View mActionBarView = mLayoutInflater.inflate(R.layout.actionbar_chatlist, null);
+		
+		mActionBarView.findViewById(R.id.action_overflow).setOnClickListener(new View.OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				PopupMenu popup = new PopupMenu(activity, v);
+
+				popup.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+
+					@Override
+					public boolean onMenuItemClick(MenuItem item) {
+						switch (item.getItemId()) {
+						case R.id.action_join_private:
+							
+							return true;
+						case R.id.action_join_public:
+							
+							return true;
+						default:
+							return false;
+						}
+					}
+				});
+
+				MenuInflater inflater = popup.getMenuInflater();
+				inflater.inflate(R.menu.chatlist_actions, popup.getMenu());
+				popup.show();
+			}
+		});
+		actionBar.setCustomView(mActionBarView, new LayoutParams(Gravity.RIGHT));
+	}
+	
+	public void actionBarChat() {
+		View mActionBarView = mLayoutInflater.inflate(R.layout.actionbar_chatlist, null);
+		final GroupType type = chatData.get(activeChat).type;
+		
+		mActionBarView.findViewById(R.id.action_overflow).setOnClickListener(new View.OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				PopupMenu popup = new PopupMenu(activity, v);
+
+				popup.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+
+					@Override
+					public boolean onMenuItemClick(MenuItem item) {
+						switch (item.getItemId()) {
+						case R.id.action_invite:
+							
+							return true;
+						case R.id.action_close:
+							// Go to chat list, remove chat instance
+							chatFragment.remove(activeChat);
+							chatData.remove(activeChat);
+							chatMessages.remove(activeChat);
+							for (String header : chatListHeader) {
+								if (chatListChildren.get(header).remove(activeChat)) break;
+							}
+							if (type != GroupType.NORMAL) {
+								Intent intent = new Intent(activity, XMPPService.class);
+								intent.setAction(XMPPService.ACTION_LEAVE_GROUP);
+								intent.putExtra(XMPPService.CHAT_ID, activeChat);
+								activity.startService(intent);
+								System.out.println("STARTED");
+							}
+							activeChat = null;
+							openChatList();
+							return true;
+						default:
+							return false;
+						}
+					}
+				});
+
+				MenuInflater inflater = popup.getMenuInflater();
+				inflater.inflate(R.menu.chat_actions, popup.getMenu());
+				popup.show();
+				if (type == GroupType.NORMAL) popup.getMenu().getItem(0).setVisible(false);
+			}
+		});
+		actionBar.setCustomView(mActionBarView, new LayoutParams(Gravity.RIGHT));
+	}
+	
 	// Fragment Callback
 
 	@Override
@@ -302,7 +401,6 @@ ChatListFragment.OnFragmentCreatedListener {
 					if (summonerName == null) return true;
 					// Invite to group chat
 					inviteGroupToChat(groupName, friendListFragment.listChildren.get(groupName));
-					Toast.makeText(activity, groupName, Toast.LENGTH_SHORT).show();
 					return true;
 				case R.id.action_message:
 					// Send message to all in group
@@ -479,7 +577,7 @@ ChatListFragment.OnFragmentCreatedListener {
 		Intent intent = new Intent(this, XMPPService.class);
 		intent.setAction(XMPPService.ACTION_TEST);
 		startService(intent);
-
+		
 		/*
 		if (getSupportFragmentManager().findFragmentByTag("chatTag") != null) {
 			getSupportFragmentManager().popBackStack("main_chat_tag",
@@ -917,9 +1015,7 @@ ChatListFragment.OnFragmentCreatedListener {
 
 	public void onSendGroupInvite(Intent intent) {
 		String chatId = intent.getStringExtra(XMPPService.CHAT_ID);
-		
 		dialog2.dismiss();
-		
 		openChat(chatId);
 	}
 
@@ -1221,8 +1317,6 @@ ChatListFragment.OnFragmentCreatedListener {
 		input.setImeActionLabel("Done", EditorInfo.IME_ACTION_NONE);
 		input.setSingleLine();
 
-		dialog2 = ProgressDialog.show(this, "Group Chat", "Creating group chat", false);
-		
 		AlertDialog.Builder builder = new AlertDialog.Builder(context);
 		builder.setView(input)
 		.setMessage("Invite " + groupName + " To Chat?")
@@ -1230,10 +1324,6 @@ ChatListFragment.OnFragmentCreatedListener {
 
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
-				//String user = intent.getStringExtra(USER);
-				//String chatId = intent.getStringExtra(CHAT_ID); // pu/pr~asddsadasdasddsas@lvl.pvp.net/conference.pvp.net
-				//String chatName = intent.getStringExtra(GROUP_CHAT_NAME); // MY CHAT ROOM
-				
 				String chatName = "" + input.getText();
 				
 				if (chatName.equals("")) return;
@@ -1251,6 +1341,8 @@ ChatListFragment.OnFragmentCreatedListener {
 				intent.putExtra(XMPPService.GROUP_CHAT_NAME, chatName);
 				
 				startService(intent);
+
+				dialog2 = ProgressDialog.show(activity, "Group Chat", "Creating group chat", false);
 				
 				dialog2.show();
 			}

@@ -8,6 +8,7 @@ import java.util.Iterator;
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.ChatManager;
 import org.jivesoftware.smack.ConnectionConfiguration;
+import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.PacketInterceptor;
 import org.jivesoftware.smack.PacketListener;
@@ -73,50 +74,52 @@ import android.util.Log;
 
 public class XMPPService extends Service {
 
-	public final static String ACTION_CONNECT = "action.CONNECT";
-	public final static String ACTION_DISCONNECT = "action.DISCONNECT";
-	public final static String ACTION_UPDATE_ROSTER = "action.UPDATE_ROSTER";
-	public final static String ACTION_SEND_MESSAGE = "action.SEND_MESSAGE";
-	public final static String ACTION_RECEIVE_MESSAGE = "action.RECEIVE_MESSAGE";
-	public final static String ACTION_SET_AWAY_STATUS = "action.SET_AWAY_STATUS";
-	public final static String ACTION_SEND_GROUP_MESSAGE = "action.SEND_GROUP_MESSAGE";
-	public final static String ACTION_RECEIVE_GROUP_MESSAGE = "action.RECEIVE_GROUP_MESSAGE";
-	public final static String ACTION_SEND_GROUP_INVITE = "action.SEND_GROUP_INVITE";
-	public final static String ACTION_RECEIVE_GROUP_INVITE = "action.RECEIVE_GROUP_INVITE";
+	public static final String ACTION_CONNECT = "action.CONNECT";
+	public static final String ACTION_DISCONNECT = "action.DISCONNECT";
+	public static final String ACTION_UPDATE_ROSTER = "action.UPDATE_ROSTER";
+	public static final String ACTION_SEND_MESSAGE = "action.SEND_MESSAGE";
+	public static final String ACTION_RECEIVE_MESSAGE = "action.RECEIVE_MESSAGE";
+	public static final String ACTION_SET_AWAY_STATUS = "action.SET_AWAY_STATUS";
+	public static final String ACTION_SEND_GROUP_MESSAGE = "action.SEND_GROUP_MESSAGE";
+	public static final String ACTION_RECEIVE_GROUP_MESSAGE = "action.RECEIVE_GROUP_MESSAGE";
+	public static final String ACTION_SEND_GROUP_INVITE = "action.SEND_GROUP_INVITE";
+	public static final String ACTION_RECEIVE_GROUP_INVITE = "action.RECEIVE_GROUP_INVITE";
 
-	public final static String ACTION_UPDATE_GROUP_CHAT = "action.UPDATE_GROUP_CHAT";
+	public static final String ACTION_UPDATE_GROUP_CHAT = "action.UPDATE_GROUP_CHAT";
 
-	public final static String ACTION_SET_SUMMONER_NAME = "action.SET_SUMMONER_NAME";
+	public static final String ACTION_SET_SUMMONER_NAME = "action.SET_SUMMONER_NAME";
 
-	public final static String ACTION_ADD_NOTIFICATION = "action.ADD_NOTIFICATION";
+	public static final String ACTION_ADD_NOTIFICATION = "action.ADD_NOTIFICATION";
 	
-	public final static String ACTION_CHANGE_FRIEND_GROUP = "action.CHANGE_FRIEND_GROUP";
+	public static final String ACTION_CHANGE_FRIEND_GROUP = "action.CHANGE_FRIEND_GROUP";
+
+	public static final String ACTION_LEAVE_GROUP = "action.LEAVE_GROUP";
 	
-	public final static String ACTION_TEST = "action.TEST";
+	public static final String ACTION_TEST = "action.TEST";
 
-	public final static String CONNECTION_STATUS = "CONNECTION_STATUS";
+	public static final String CONNECTION_STATUS = "CONNECTION_STATUS";
 
-	public final static String SERVICE_THREAD_NAME = "XMPP_THREAD";
+	public static final String SERVICE_THREAD_NAME = "XMPP_THREAD";
 
-	public final static String USER = "USER";
-	public final static String NAME = "NAME";
-	public final static String STATUS = "STATUS";
-	public final static String MODE = "MODES";
-	public final static String GROUP = "GROUPS";
-	public final static String GROUPLIST = "GROUPLIST";
-	public final static String MESSAGE = "MESSAGE";
-	public final static String TIMESTAMP = "TIMESTAMP";
-	public final static String IS_ONLINE = "IS_ONLINE";
+	public static final String USER = "USER";
+	public static final String NAME = "NAME";
+	public static final String STATUS = "STATUS";
+	public static final String MODE = "MODES";
+	public static final String GROUP = "GROUPS";
+	public static final String GROUPLIST = "GROUPLIST";
+	public static final String MESSAGE = "MESSAGE";
+	public static final String TIMESTAMP = "TIMESTAMP";
+	public static final String IS_ONLINE = "IS_ONLINE";
 
-	public final static String CHAT_ID = "CHAT_ID";
+	public static final String CHAT_ID = "CHAT_ID";
 
-	public final static String GROUP_FROM = "GROUP_FROM";
-	public final static String GROUP_TYPE = "GROUP_TYPE";
-	public final static String GROUP_CHAT_NAME = "GROUP_CHAT_NAME";
+	public static final String GROUP_FROM = "GROUP_FROM";
+	public static final String GROUP_TYPE = "GROUP_TYPE";
+	public static final String GROUP_CHAT_NAME = "GROUP_CHAT_NAME";
 
-	public final static String SENDER = "SENDER";
+	public static final String SENDER = "SENDER";
 
-	public final static String INVITE_RESPONSE = "INVITE_RESPONSE";
+	public static final String INVITE_RESPONSE = "INVITE_RESPONSE";
 	
 	public enum GroupType {
 		NORMAL, PRIVATE, PUBLIC
@@ -198,6 +201,8 @@ public class XMPPService extends Service {
 			sendGroupInvite(intent);
 		} else if (action.equals(ACTION_CHANGE_FRIEND_GROUP)) {
 			changeFriendGroup(intent);
+		} else if (action.equals(ACTION_LEAVE_GROUP)) {
+			leaveGroup(intent);
 		} else if (action.equals(ACTION_TEST)) {
 			test(intent);
 		}
@@ -803,7 +808,6 @@ public class XMPPService extends Service {
 			}
 		} else {
 			// Leave room
-			muc.get(from).leave();
 			muc.remove(from);
 		}
 	}
@@ -823,6 +827,18 @@ public class XMPPService extends Service {
 			updateRoster();
 		} catch (Exception e2) {
 			e2.printStackTrace();
+		}
+	}
+	
+	// Leave Group Chat
+	public void leaveGroup(Intent intent) {
+		String chatId = intent.getStringExtra(CHAT_ID);
+		System.out.println(chatId);
+		if (muc.containsKey(chatId)) {
+			Presence p = new Presence(Presence.Type.unavailable);
+			p.setTo(chatId);
+			connection.sendPacket(p);
+			muc.remove(chatId);
 		}
 	}
 	
@@ -867,17 +883,40 @@ public class XMPPService extends Service {
 		//Presence p = new Presence(Presence.Type.available);
 		//connection.sendPacket(p);
 
-		if (connection == null) System.out.println("NULL");
-		else System.out.println("NOT NULL");
-
 		if (connection.isConnected()) System.out.println("CON");
 		else System.out.println("NOT CON");
 		System.out.println(connection.isSocketClosed());
 		System.out.println(connection.getConnectionID());
-		System.out.println(connection.toString());
-
+		System.out.println(connection.getRoster() == null);
+		System.out.println(connection.isConnected());
 		
-
+		connection.addConnectionListener(new ConnectionListener() {
+			
+			@Override
+			public void reconnectionSuccessful() {
+				System.out.println("Reconnect success");
+			}
+			
+			@Override
+			public void reconnectionFailed(Exception arg0) {
+				System.out.println("Reconnect failed " + arg0.getMessage());
+			}
+			
+			@Override
+			public void reconnectingIn(int arg0) {
+				System.out.println("Reconnecting in " + arg0);
+			}
+			
+			@Override
+			public void connectionClosedOnError(Exception arg0) {
+				System.out.println("Connection Closed " + arg0.getMessage());
+			}
+			
+			@Override
+			public void connectionClosed() {
+				System.out.println("Connection Closed");
+			}
+		});
 	}
 
 	// Check connection status
