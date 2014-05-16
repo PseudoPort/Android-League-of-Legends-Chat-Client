@@ -1000,8 +1000,8 @@ containing a value of this type.
         public static final int action_friendlist=0x7f050053;
         public static final int action_home=0x7f050054;
         public static final int action_invite=0x7f050057;
-        public static final int action_join_private=0x7f05005a;
-        public static final int action_join_public=0x7f050059;
+        public static final int action_join_private=0x7f050059;
+        public static final int action_join_public=0x7f05005a;
         public static final int action_menu_divider=0x7f050016;
         public static final int action_menu_presenter=0x7f050017;
         public static final int action_message=0x7f05005b;

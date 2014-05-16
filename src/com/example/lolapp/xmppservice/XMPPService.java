@@ -95,6 +95,8 @@ public class XMPPService extends Service {
 
 	public static final String ACTION_LEAVE_GROUP = "action.LEAVE_GROUP";
 	
+	public static final String ACTION_JOIN_GROUP_CHAT = "action.JOIN_GROUP_CHAT";
+	
 	public static final String ACTION_TEST = "action.TEST";
 
 	public static final String CONNECTION_STATUS = "CONNECTION_STATUS";
@@ -203,6 +205,8 @@ public class XMPPService extends Service {
 			changeFriendGroup(intent);
 		} else if (action.equals(ACTION_LEAVE_GROUP)) {
 			leaveGroup(intent);
+		} else if (action.equals(ACTION_JOIN_GROUP_CHAT)) {
+			joinGroupChat(intent);
 		} else if (action.equals(ACTION_TEST)) {
 			test(intent);
 		}
@@ -776,6 +780,50 @@ public class XMPPService extends Service {
 		
 		//muc2.invite("sum54559857@pvp.net", "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\"YOSOYSATANAS666's Chat Room\"}");
 		//muc2.invite("sum20459570@pvp.net", "{\"message\":\"Please join my group chat!\",\"type\":\"pu\",\"subject\":\"YOSOYSATANAS666's Chat Room\"}");
+	}
+	
+	// Join Chat
+	public void joinGroupChat(Intent intent) {
+		String chatId = intent.getStringExtra(CHAT_ID);
+		String chatName = intent.getStringExtra(GROUP_CHAT_NAME);
+		
+		MultiUserChat chat = null;
+		if (muc.containsKey(chatId)) { // Chat exists!
+			//System.out.println("EXISTS");
+			chat = muc.get(chatId);
+			
+			if (chat.getOccupantsCount() == 0) {
+				try {
+					chat.join(connection.getUser());
+				} catch (XMPPException e) {
+					//e.printStackTrace();
+				}
+			}
+		} else { // Create chat, then invite
+			//System.out.println("NEW!");
+			chat = new MultiUserChat(connection, chatId);
+			muc.put(chatId, chat);
+			chat = muc.get(chatId);
+			
+			try {
+				chat.join(connection.getUser());
+			} catch (XMPPException e) {
+				//e.printStackTrace();
+			}
+			
+			// Join room
+			if (muc.get(chatId).getOccupantsCount() > 0) {
+				// Send broadcast to add group chat
+				Intent i = new Intent();
+				i.setAction(ACTION_UPDATE_GROUP_CHAT);
+				i.putExtra(GROUP_FROM, chatId); // Id
+				i.putExtra(INVITE_RESPONSE, true);
+				i.putExtra(GROUP_TYPE, GroupType.PUBLIC);
+				i.putExtra(GROUP_CHAT_NAME, chatName);
+				i.putExtra(ChatFragment.TYPE, ChatFragment.Type.GROUP);
+				sendBroadcast(i);
+			}
+		}
 	}
 	
 	// Join/Decline Chat

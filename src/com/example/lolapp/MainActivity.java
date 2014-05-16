@@ -13,6 +13,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
+import org.jivesoftware.smack.util.StringUtils;
+
 import com.example.lolapp.ChatFragment.Type;
 import com.example.lolapp.listview.ChatListAdapter;
 import com.example.lolapp.listview.FriendsListAdapter;
@@ -68,6 +70,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
+import android.content.DialogInterface.OnMultiChoiceClickListener;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
@@ -122,7 +125,7 @@ ChatListFragment.OnFragmentCreatedListener {
 	Context context = this;
 	ProgressDialog dialog = null;
 	ProgressDialog dialog2 = null;
-	
+
 	// Friends List
 	HashMap<String, Summoner> summoners = new HashMap<String, Summoner>();
 
@@ -156,7 +159,7 @@ ChatListFragment.OnFragmentCreatedListener {
 		// Setup Action bar
 		actionBar = getSupportActionBar();
 		actionBar.setDisplayShowCustomEnabled(true);
-				
+
 		if (savedInstanceState == null) {
 			// Initialize FragmentManager
 			fragmentManager = getSupportFragmentManager();
@@ -171,10 +174,10 @@ ChatListFragment.OnFragmentCreatedListener {
 
 			// Set fragment view
 			openLogin();
-			
+
 			// Hide split action bar
-			
-			
+
+
 		}
 
 
@@ -200,6 +203,7 @@ ChatListFragment.OnFragmentCreatedListener {
 		intentFilter.addAction(XMPPService.ACTION_RECEIVE_GROUP_INVITE);
 		intentFilter.addAction(XMPPService.ACTION_UPDATE_GROUP_CHAT);
 		intentFilter.addAction(XMPPService.ACTION_SET_SUMMONER_NAME);
+		intentFilter.addAction(XMPPService.ACTION_SEND_GROUP_INVITE);
 		intentFilter.addAction(XMPPService.ACTION_TEST);
 		registerReceiver(mainReceiver, intentFilter);
 
@@ -211,7 +215,7 @@ ChatListFragment.OnFragmentCreatedListener {
 		optionsMenu = menu;
 		inflater = getMenuInflater();
 		mLayoutInflater = getLayoutInflater();
-		
+
 		if (getSupportFragmentManager().findFragmentByTag(FRAGMENT_LOGIN) != null) { 
 			inflater.inflate(R.menu.empty, menu);
 		} else if (getSupportFragmentManager().findFragmentByTag(FRAGMENT_CHAT) != null) {
@@ -253,9 +257,9 @@ ChatListFragment.OnFragmentCreatedListener {
 	// Setup action bar
 	public void actionBarChatList() {
 		View mActionBarView = mLayoutInflater.inflate(R.layout.actionbar_chatlist, null);
-		
+
 		mActionBarView.findViewById(R.id.action_overflow).setOnClickListener(new View.OnClickListener() {
-			
+
 			@Override
 			public void onClick(View v) {
 				PopupMenu popup = new PopupMenu(activity, v);
@@ -264,12 +268,62 @@ ChatListFragment.OnFragmentCreatedListener {
 
 					@Override
 					public boolean onMenuItemClick(MenuItem item) {
+						final Intent intent = new Intent(activity, XMPPService.class);
+						intent.setAction(XMPPService.ACTION_JOIN_GROUP_CHAT);
+
 						switch (item.getItemId()) {
 						case R.id.action_join_private:
-							
+							String chatName = (summonerName == null ? StringUtils.parseName(currentUser) : summonerName) + "'s Chat Room";
+
+							String chatId = sha1(chatName.toLowerCase());
+
+							intent.putExtra(XMPPService.CHAT_ID, "pr~" + chatId + "@conference.pvp.net");
+							intent.putExtra(XMPPService.GROUP_CHAT_NAME, chatName);
+
+							startService(intent);
+
+							dialog2 = ProgressDialog.show(activity, "Group Chat", "Joining group chat", false);
+							dialog2.show();
+
 							return true;
 						case R.id.action_join_public:
-							
+
+
+							final EditText input = new EditText(MainActivity.this);  
+							RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
+									RelativeLayout.LayoutParams.WRAP_CONTENT,
+									RelativeLayout.LayoutParams.WRAP_CONTENT);
+
+							input.setLayoutParams(lp);
+							input.setImeActionLabel("Done", EditorInfo.IME_ACTION_NONE);
+							input.setSingleLine();
+
+							AlertDialog.Builder builder = new AlertDialog.Builder(context);
+							builder.setView(input)
+							.setMessage("Join public chat")
+							.setPositiveButton("Join", new OnClickListener() {
+
+								@Override
+								public void onClick(DialogInterface dialog, int which) {
+									String chatName = "" + input.getText();
+
+									if (chatName.equals("")) return;
+
+									String user = "";
+									String chatId = sha1(chatName.toLowerCase());
+
+									intent.putExtra(XMPPService.CHAT_ID, "pu~" + chatId + "@lvl.pvp.net");
+									intent.putExtra(XMPPService.GROUP_CHAT_NAME, chatName);
+
+									startService(intent);
+
+									dialog2 = ProgressDialog.show(activity, "Group Chat", "Joining group chat", false);
+
+									dialog2.show();
+								}
+							});
+							AlertDialog alert = builder.create();
+							alert.show();
 							return true;
 						default:
 							return false;
@@ -284,24 +338,84 @@ ChatListFragment.OnFragmentCreatedListener {
 		});
 		actionBar.setCustomView(mActionBarView, new LayoutParams(Gravity.RIGHT));
 	}
-	
+
+	boolean[] checkedItems = null;
+	AlertDialog d = null;
+	ArrayList<CharSequence> friends = null;
 	public void actionBarChat() {
 		View mActionBarView = mLayoutInflater.inflate(R.layout.actionbar_chatlist, null);
 		final GroupType type = chatData.get(activeChat).type;
-		
+
 		mActionBarView.findViewById(R.id.action_overflow).setOnClickListener(new View.OnClickListener() {
-			
+
 			@Override
 			public void onClick(View v) {
 				PopupMenu popup = new PopupMenu(activity, v);
-
+				checkedItems = null;
 				popup.setOnMenuItemClickListener(new OnMenuItemClickListener() {
 
 					@Override
 					public boolean onMenuItemClick(MenuItem item) {
 						switch (item.getItemId()) {
 						case R.id.action_invite:
-							
+							// Open invite dialog
+
+							// Get friends
+							friends = new ArrayList<CharSequence>();
+							for (Entry<String, Summoner> s : summoners.entrySet()) {
+								Summoner summoner = s.getValue();
+								if (summoner.isOnline) friends.add(summoner.name);
+							}
+							final int size = friends.size();
+							d = null;
+							checkedItems = null;
+
+							AlertDialog.Builder b = new AlertDialog.Builder(context)
+							.setTitle("Friends")
+							.setPositiveButton("Invite", new OnClickListener() {
+
+								@Override
+								public void onClick(DialogInterface dialog, int which) {
+									if (checkedItems == null) return;
+
+									Intent intent = new Intent(activity, XMPPService.class);
+									intent.setAction(XMPPService.ACTION_SEND_GROUP_INVITE);									
+									
+									ArrayList<String> invited = new ArrayList<String>();
+									for (int i = 0; i < checkedItems.length; i++) {
+										//System.out.println(i + " " + friends.get(i) + " " +checkedItems[i]);
+										if (checkedItems[i]) invited.add(friends.get(i).toString());
+									}
+
+									for (Entry<String, Summoner> entry : summoners.entrySet()) {
+										for (String sum : invited) {
+											if (entry.getValue().name.equalsIgnoreCase(sum)) {
+												if (intent.getStringExtra(XMPPService.USER) == null) {
+													intent.putExtra(XMPPService.USER, entry.getValue().user);
+												} else {
+													intent.putExtra(XMPPService.USER, intent.getStringExtra(XMPPService.USER) + "," + entry.getValue().user);
+												}
+											}
+										}
+									}
+									intent.putExtra(XMPPService.CHAT_ID, activeChat);
+									intent.putExtra(XMPPService.GROUP_CHAT_NAME, chatData.get(activeChat).name);
+
+									if (intent.getExtras().containsKey(XMPPService.USER)) startService(intent);
+								}
+							})
+							.setMultiChoiceItems(((ArrayList<CharSequence>)friends).toArray(new CharSequence[size]), checkedItems, new OnMultiChoiceClickListener() {
+
+								@Override
+								public void onClick(DialogInterface dialog,
+										int which, boolean isChecked) {
+									if (checkedItems == null) checkedItems = new boolean[size];
+									checkedItems[which] = isChecked;
+								}
+							});
+							d = b.create();
+							d.show();
+
 							return true;
 						case R.id.action_close:
 							// Go to chat list, remove chat instance
@@ -335,7 +449,7 @@ ChatListFragment.OnFragmentCreatedListener {
 		});
 		actionBar.setCustomView(mActionBarView, new LayoutParams(Gravity.RIGHT));
 	}
-	
+
 	// Fragment Callback
 
 	@Override
@@ -571,13 +685,13 @@ ChatListFragment.OnFragmentCreatedListener {
 
 	@Override
 	public void onBackPressed() {
-		
+
 		openHome();
-		
+
 		Intent intent = new Intent(this, XMPPService.class);
 		intent.setAction(XMPPService.ACTION_TEST);
 		startService(intent);
-		
+
 		/*
 		if (getSupportFragmentManager().findFragmentByTag("chatTag") != null) {
 			getSupportFragmentManager().popBackStack("main_chat_tag",
@@ -899,9 +1013,9 @@ ChatListFragment.OnFragmentCreatedListener {
 				chat.chatAdapter.add(value.message);
 			}
 		} catch (Exception e) {
-			
+
 		}
-		
+
 		// Add new message
 		chatMessages.get(recipient).put(System.currentTimeMillis(), new ChatMessage(message, username, true));
 		try {
@@ -909,7 +1023,7 @@ ChatListFragment.OnFragmentCreatedListener {
 
 			chat.chatView.setAdapter(chat.chatAdapter);
 		} catch (Exception e) {
-			
+
 		}
 	}
 
@@ -1016,7 +1130,13 @@ ChatListFragment.OnFragmentCreatedListener {
 	public void onSendGroupInvite(Intent intent) {
 		String chatId = intent.getStringExtra(XMPPService.CHAT_ID);
 		dialog2.dismiss();
-		openChat(chatId);
+		try {
+			if (!activeChat.equalsIgnoreCase(chatId)) {
+				openChat(chatId);	
+			}
+		} catch (Exception e) {
+			
+		}
 	}
 
 	public void onReceiveGroupInvite(final Intent intent) {
@@ -1050,6 +1170,8 @@ ChatListFragment.OnFragmentCreatedListener {
 				case DialogInterface.BUTTON_POSITIVE:
 					System.out.println("Y");
 					i.putExtra(XMPPService.INVITE_RESPONSE, true);
+					dialog2 = ProgressDialog.show(activity, "Group Chat", "Joining group chat", false);
+					dialog2.show();
 					startService(i);
 					break;
 				case DialogInterface.BUTTON_NEGATIVE:
@@ -1076,6 +1198,7 @@ ChatListFragment.OnFragmentCreatedListener {
 	}
 
 	public void updateGroupChat(Intent intent) {
+		if (dialog2 != null) dialog2.dismiss();
 		System.out.println("UPDATING GROUP CHAT (Adding messages)");
 
 		Bundle b = intent.getExtras();
@@ -1303,16 +1426,16 @@ ChatListFragment.OnFragmentCreatedListener {
 		}
 
 	}
-	
+
 	public void inviteGroupToChat(String groupName, final List<String> groupList) {
 		final Intent intent = new Intent(this, XMPPService.class);
 		intent.setAction(XMPPService.ACTION_SEND_GROUP_INVITE);
-		
+
 		final EditText input = new EditText(MainActivity.this);  
 		RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
 				RelativeLayout.LayoutParams.WRAP_CONTENT,
 				RelativeLayout.LayoutParams.WRAP_CONTENT);
-		
+
 		input.setLayoutParams(lp);
 		input.setImeActionLabel("Done", EditorInfo.IME_ACTION_NONE);
 		input.setSingleLine();
@@ -1325,39 +1448,32 @@ ChatListFragment.OnFragmentCreatedListener {
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
 				String chatName = "" + input.getText();
-				
+
 				if (chatName.equals("")) return;
-				
+
 				String user = "";
 				String chatId = sha1(chatName.toLowerCase());
-				
+
 				for (String s : groupList) {
 					Summoner summoner = summoners.get(s);
 					user = summoner.user;
 					intent.putExtra(XMPPService.USER, intent.getStringExtra(XMPPService.USER) + "," + user);
 				}
-				
+
 				intent.putExtra(XMPPService.CHAT_ID, "pu~" + chatId + "@lvl.pvp.net");
 				intent.putExtra(XMPPService.GROUP_CHAT_NAME, chatName);
-				
+
 				startService(intent);
 
 				dialog2 = ProgressDialog.show(activity, "Group Chat", "Creating group chat", false);
-				
-				dialog2.show();
-			}
-		})
-		.setNegativeButton("Cancel", new OnClickListener() {
 
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				dialog.cancel();
+				dialog2.show();
 			}
 		});
 		AlertDialog alert = builder.create();
 		alert.show();
 	}
-	
+
 	public void sendMessageToGroup(String groupName, final List<String> groupList) {
 		final Intent intent = new Intent(activity, XMPPService.class);
 		intent.setAction(XMPPService.ACTION_SEND_MESSAGE);
@@ -1366,12 +1482,12 @@ ChatListFragment.OnFragmentCreatedListener {
 		RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
 				RelativeLayout.LayoutParams.WRAP_CONTENT,
 				RelativeLayout.LayoutParams.WRAP_CONTENT);
-		
+
 		input.setLayoutParams(lp);
 		input.setImeActionLabel("Done", EditorInfo.IME_ACTION_NONE);
 		input.setSingleLine();
-		
-		
+
+
 		AlertDialog.Builder builder = new AlertDialog.Builder(context);
 		builder.setView(input)//getLayoutInflater().inflate(R.layout.dialog_message, null))
 		.setMessage("Send message to " + groupName)
@@ -1382,7 +1498,7 @@ ChatListFragment.OnFragmentCreatedListener {
 				String message = "" + input.getText();
 				for (String s : groupList) {
 					Summoner summoner = summoners.get(s);
-					
+
 					// Setup chat if does not exist
 					if (!chatMessages.containsKey(s)) {
 						try {
@@ -1392,7 +1508,7 @@ ChatListFragment.OnFragmentCreatedListener {
 
 						}
 					}
-					
+
 					if (!chatFragment.containsKey(s)) {
 						ChatFragment chatTemp = new ChatFragment();
 						chatFragment.put(s, chatTemp);
@@ -1403,19 +1519,12 @@ ChatListFragment.OnFragmentCreatedListener {
 						b2.putSerializable(ChatFragment.TYPE, ChatFragment.Type.NORMAL);
 						chatTemp.setArguments(b2);
 					}
-					
+
 					intent.putExtra(XMPPService.CHAT_ID, summoner.user); // Username
 					intent.putExtra(XMPPService.NAME, summoner.name); // Recipient name
 					intent.putExtra(XMPPService.MESSAGE, message); // Message
 					activity.startService(intent);
 				}
-			}
-		})
-		.setNegativeButton("Cancel", new OnClickListener() {
-
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				dialog.cancel();
 			}
 		});
 		AlertDialog alert = builder.create();
