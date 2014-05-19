@@ -4,19 +4,11 @@
     android:layout_height="match_parent" >
 
     <ImageView
-        android:id="@+id/action_chatlist"
+        android:id="@+id/action_overflow"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_centerVertical="true"
-        android:src="@drawable/ic_action_group" />
-
-    <ImageView
-        android:id="@+id/action_overflow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerVertical="true"
-        android:layout_toRightOf="@+id/action_chatlist"
         android:src="@drawable/ic_action_overflow" />
 
 </RelativeLayout>

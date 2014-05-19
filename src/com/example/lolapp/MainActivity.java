@@ -46,6 +46,8 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.view.animation.Animation;
 import android.view.animation.Animation.AnimationListener;
 import android.view.animation.AnimationUtils;
@@ -53,11 +55,14 @@ import android.view.animation.TranslateAnimation;
 import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ExpandableListView;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
+import android.widget.SimpleAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.R.anim;
@@ -150,6 +155,9 @@ ChatListFragment.OnFragmentCreatedListener {
 
 	// Notification animation
 	int position = 0, positionOld = 0;
+	
+	// Back navigation
+	String previousFragment = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -204,6 +212,7 @@ ChatListFragment.OnFragmentCreatedListener {
 		intentFilter.addAction(XMPPService.ACTION_UPDATE_GROUP_CHAT);
 		intentFilter.addAction(XMPPService.ACTION_SET_SUMMONER_NAME);
 		intentFilter.addAction(XMPPService.ACTION_SEND_GROUP_INVITE);
+		intentFilter.addAction(XMPPService.ACTION_GROUP_LIST);
 		intentFilter.addAction(XMPPService.ACTION_TEST);
 		registerReceiver(mainReceiver, intentFilter);
 
@@ -233,7 +242,21 @@ ChatListFragment.OnFragmentCreatedListener {
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
+		
+		if (groupListView != null) {
+			try {
+				((FrameLayout)groupListView.getParent()).removeView(groupListView);
+				groupListView = null;
+			} catch (Exception e) {
+			}
+		}
+
+		actionBar.setHomeButtonEnabled(false);
+		
 		switch (item.getItemId()) {
+		case android.R.id.home:
+			back();
+			return true;
 		case R.id.action_settings:
 			openSettings();
 			return true;
@@ -254,9 +277,23 @@ ChatListFragment.OnFragmentCreatedListener {
 		}
 	}
 
+	// Back navigation
+	private void back() {
+		if (previousFragment == null) return;
+		if (previousFragment.equals(FRAGMENT_FRIEND_LIST)) {
+			openFriendList();
+		} else if (previousFragment.equals(FRAGMENT_HOME)) {
+			openHome();
+		} else if (previousFragment.equals(FRAGMENT_CHAT_LIST)) {
+			openChatList();
+		} else if (previousFragment.equals(FRAGMENT_NOTIFICATIONS)) {
+			openNotifications();
+		}
+	}
+
 	// Setup action bar
 	public void actionBarChatList() {
-		View mActionBarView = mLayoutInflater.inflate(R.layout.actionbar_chatlist, null);
+		View mActionBarView = mLayoutInflater.inflate(R.layout.actionbar_overflow, null);
 
 		mActionBarView.findViewById(R.id.action_overflow).setOnClickListener(new View.OnClickListener() {
 
@@ -343,9 +380,12 @@ ChatListFragment.OnFragmentCreatedListener {
 	AlertDialog d = null;
 	ArrayList<CharSequence> friends = null;
 	public void actionBarChat() {
-		View mActionBarView = mLayoutInflater.inflate(R.layout.actionbar_chatlist, null);
 		final GroupType type = chatData.get(activeChat).type;
-
+		
+		View mActionBarView;
+		if (type == GroupType.NORMAL) mActionBarView = mLayoutInflater.inflate(R.layout.actionbar_overflow, null);
+		else mActionBarView = mLayoutInflater.inflate(R.layout.actionbar_chatlist, null);
+		
 		mActionBarView.findViewById(R.id.action_overflow).setOnClickListener(new View.OnClickListener() {
 
 			@Override
@@ -447,6 +487,21 @@ ChatListFragment.OnFragmentCreatedListener {
 				if (type == GroupType.NORMAL) popup.getMenu().getItem(0).setVisible(false);
 			}
 		});
+		
+		if (type != GroupType.NORMAL) {
+			mActionBarView.findViewById(R.id.action_chatlist).setOnClickListener(new View.OnClickListener() {
+				
+				@Override
+				public void onClick(View v) {
+					// Get group list
+					Intent intent = new Intent(activity, XMPPService.class);
+					intent.setAction(XMPPService.ACTION_GROUP_LIST);
+					intent.putExtra(XMPPService.CHAT_ID, activeChat);
+					startService(intent);
+				}
+			});
+		}
+		
 		actionBar.setCustomView(mActionBarView, new LayoutParams(Gravity.RIGHT));
 	}
 
@@ -685,12 +740,12 @@ ChatListFragment.OnFragmentCreatedListener {
 
 	@Override
 	public void onBackPressed() {
+		back();
+		//openHome();
 
-		openHome();
-
-		Intent intent = new Intent(this, XMPPService.class);
-		intent.setAction(XMPPService.ACTION_TEST);
-		startService(intent);
+		//Intent intent = new Intent(this, XMPPService.class);
+		//intent.setAction(XMPPService.ACTION_TEST);
+		//startService(intent);
 
 		/*
 		if (getSupportFragmentManager().findFragmentByTag("chatTag") != null) {
@@ -704,6 +759,7 @@ ChatListFragment.OnFragmentCreatedListener {
 		} else {
 			super.onBackPressed();
 		}*/
+		//onSearchRequested();
 	}
 
 	// OTHER METHODS
@@ -718,6 +774,7 @@ ChatListFragment.OnFragmentCreatedListener {
 
 		@Override
 		public void onReceive(Context context, Intent intent) {
+			System.out.println(intent.getAction());
 			if (intent.getAction().equals(XMPPService.ACTION_CONNECT)) {
 				onConnect(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_SET_SUMMONER_NAME)) {
@@ -739,6 +796,8 @@ ChatListFragment.OnFragmentCreatedListener {
 				onReceiveGroupInvite(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_UPDATE_GROUP_CHAT)) { // Update group chat invite
 				updateGroupChat(intent);
+			} else if (intent.getAction().equals(XMPPService.ACTION_GROUP_LIST)) { // Group list
+				getGroupList(intent);
 			} else if (intent.getAction().equals(XMPPService.ACTION_ADD_NOTIFICATION)) {
 
 			}
@@ -756,27 +815,15 @@ ChatListFragment.OnFragmentCreatedListener {
 
 		}
 	}
-
+	View v = null;
 	@Override
 	public boolean onSearchRequested() {
-		//Intent intent = new Intent(this, XMPPService.class);
-		//intent.setAction(XMPPService.ACTION_SET_AWAY_STATUS);
-		//startService(intent);
-
-		//Intent intent = new Intent(this, XMPPService.class);
-		//intent.setAction(XMPPService.ACTION_SEND_GROUP_INVITE);
-		//intent.putExtra("NAME", "sum54559857@pvp.net");
-
-		//startService(intent);
-
-		//addNotification("New Notif", NotificationListAdapter.TYPE_MESSAGE);
-		//updateRoster();
-
 		Intent intent = new Intent(this, XMPPService.class);
 		intent.setAction(XMPPService.ACTION_TEST);
 		startService(intent);
 
 		openHome();
+		
 		return super.onSearchRequested();
 	}
 
@@ -893,10 +940,22 @@ ChatListFragment.OnFragmentCreatedListener {
 		chatTemp.setArguments(b);
 
 		// Switch fragment
+		
+		if (fragmentManager.findFragmentByTag(FRAGMENT_FRIEND_LIST) != null) {
+			previousFragment = FRAGMENT_FRIEND_LIST;
+		} else if (fragmentManager.findFragmentByTag(FRAGMENT_NOTIFICATIONS) != null) {
+			previousFragment = FRAGMENT_NOTIFICATIONS;
+		} else {
+			previousFragment = FRAGMENT_CHAT_LIST;
+		}
+		
 		fragmentTransaction = fragmentManager.beginTransaction();
 		//fragmentTransaction.replace(android.R.id.content, chatTemp, "chatTag").addToBackStack("main_chat_tag");
 		fragmentTransaction.replace(android.R.id.content, chatTemp, FRAGMENT_CHAT);
 		fragmentTransaction.commit();
+		
+		// Enable up
+		actionBar.setHomeButtonEnabled(true);
 	}
 
 	// Functions
@@ -1052,6 +1111,10 @@ ChatListFragment.OnFragmentCreatedListener {
 			b2.putString(ChatFragment.NAME, summoners.get(b.getString(XMPPService.USER)).name);
 			b2.putSerializable(ChatFragment.TYPE, ChatFragment.Type.NORMAL);
 			chatTemp.setArguments(b2);
+			
+			// update chat list fragment
+			if (getSupportFragmentManager().findFragmentByTag(FRAGMENT_CHAT_LIST) != null) onChatListCreated();
+			
 			return;
 		}
 		else chatTemp = chatFragment.get(user);
@@ -1060,7 +1123,7 @@ ChatListFragment.OnFragmentCreatedListener {
 			chatTemp.chatAdapter.add(summoners.get(b.getString(XMPPService.USER)).name + ": " + b.getString(XMPPService.MESSAGE));
 			chatTemp.chatAdapter.notifyDataSetChanged();
 		}
-
+		
 		// Send Notification
 	}
 
@@ -1220,6 +1283,40 @@ ChatListFragment.OnFragmentCreatedListener {
 
 			}
 		}
+	}
+	
+	View groupListView = null;
+	public void getGroupList(Intent intent) {
+		String chatId = intent.getStringExtra(XMPPService.CHAT_ID);
+		ArrayList<String> participantList = intent.getStringArrayListExtra(XMPPService.GROUPLIST);
+		ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1);
+		adapter.addAll(participantList);
+		
+		boolean showView = true;
+		
+		if (groupListView != null) {
+			if (((ListView)groupListView.findViewById(R.id.listView1)).getAdapter().getCount() == participantList.size()) {
+				if (groupListView.getVisibility() == View.VISIBLE) groupListView.setVisibility(View.GONE);
+				else groupListView.setVisibility(View.VISIBLE);
+				return;
+			} else {
+				if (groupListView.getVisibility() == View.VISIBLE) showView = false; 
+				((FrameLayout)groupListView.getParent()).removeView(groupListView);
+			}
+		}
+		groupListView = mLayoutInflater.inflate(R.layout.groupchat_list, null);
+		
+		((ListView)groupListView.findViewById(R.id.listView1)).setAdapter(adapter);
+		
+		View insertPoint = findViewById(android.R.id.content);
+		
+		RelativeLayout.LayoutParams lP = new RelativeLayout.LayoutParams(dp(128), dp(96));
+		groupListView.setLayoutParams(lP);
+		
+		((TextView)groupListView.findViewById(R.id.textView1)).setText(String.format("Participants (%s)", participantList.size()));
+		
+		((ViewGroup)insertPoint).addView(groupListView);
+		if (!showView) groupListView.setVisibility(View.GONE);
 	}
 
 	@SuppressLint("SimpleDateFormat")

@@ -29,7 +29,9 @@ import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smackx.GroupChatInvitation;
 import org.jivesoftware.smackx.PrivateDataManager;
 import org.jivesoftware.smackx.bytestreams.socks5.provider.BytestreamsProvider;
+import org.jivesoftware.smackx.muc.Affiliate;
 import org.jivesoftware.smackx.muc.MultiUserChat;
+import org.jivesoftware.smackx.muc.Occupant;
 import org.jivesoftware.smackx.packet.ChatStateExtension;
 import org.jivesoftware.smackx.packet.LastActivity;
 import org.jivesoftware.smackx.packet.OfflineMessageInfo;
@@ -96,6 +98,8 @@ public class XMPPService extends Service {
 	public static final String ACTION_LEAVE_GROUP = "action.LEAVE_GROUP";
 	
 	public static final String ACTION_JOIN_GROUP_CHAT = "action.JOIN_GROUP_CHAT";
+	
+	public static final String ACTION_GROUP_LIST = "action.GROUP_LIST";
 	
 	public static final String ACTION_TEST = "action.TEST";
 
@@ -207,6 +211,8 @@ public class XMPPService extends Service {
 			leaveGroup(intent);
 		} else if (action.equals(ACTION_JOIN_GROUP_CHAT)) {
 			joinGroupChat(intent);
+		} else if (action.equals(ACTION_GROUP_LIST)) {
+			getGroupList(intent);
 		} else if (action.equals(ACTION_TEST)) {
 			test(intent);
 		}
@@ -270,6 +276,34 @@ public class XMPPService extends Service {
 				connection.sendPacket(presence);
 				Thread getSumName = new GetSummonerName();
 				getSumName.start();
+
+				connection.addConnectionListener(new ConnectionListener() {
+					
+					@Override
+					public void reconnectionSuccessful() {
+						System.out.println("Reconnect success");
+					}
+					
+					@Override
+					public void reconnectionFailed(Exception arg0) {
+						System.out.println("Reconnect failed " + arg0.getMessage());
+					}
+					
+					@Override
+					public void reconnectingIn(int arg0) {
+						System.out.println("Reconnecting in " + arg0);
+					}
+					
+					@Override
+					public void connectionClosedOnError(Exception arg0) {
+						System.out.println("Connection Closed " + arg0.getMessage()); // On lose Internet
+					}
+					
+					@Override
+					public void connectionClosed() {
+						System.out.println("Connection Closed");
+					}
+				});
 				//new ConnectionTest().start();
 			} catch (Exception ex) {
 				Log.e("XMPPStatus", "Failed to log in as "+  "USER");
@@ -890,6 +924,23 @@ public class XMPPService extends Service {
 		}
 	}
 	
+	// Get Group List (Returns summoner names)
+	public void getGroupList(Intent intent) {
+		String chatId = intent.getStringExtra(CHAT_ID);
+		if (muc.containsKey(chatId)) {
+			MultiUserChat chat = muc.get(chatId);
+			ArrayList<String> participantList = new ArrayList<String>();
+			Iterator<String> i = chat.getOccupants();
+			while (i.hasNext()) {
+				participantList.add(StringUtils.parseResource(i.next()));
+			}
+			Intent in = new Intent();
+			in.setAction(ACTION_GROUP_LIST);
+			in.putExtra(GROUPLIST, participantList);
+			in.putExtra(CHAT_ID, chatId);
+			sendBroadcast(in);
+		}
+	}
 	
 	// TEST METHOD
 	public void test(Intent intent) {
@@ -931,40 +982,10 @@ public class XMPPService extends Service {
 		//Presence p = new Presence(Presence.Type.available);
 		//connection.sendPacket(p);
 
-		if (connection.isConnected()) System.out.println("CON");
-		else System.out.println("NOT CON");
-		System.out.println(connection.isSocketClosed());
-		System.out.println(connection.getConnectionID());
-		System.out.println(connection.getRoster() == null);
-		System.out.println(connection.isConnected());
-		
-		connection.addConnectionListener(new ConnectionListener() {
-			
-			@Override
-			public void reconnectionSuccessful() {
-				System.out.println("Reconnect success");
-			}
-			
-			@Override
-			public void reconnectionFailed(Exception arg0) {
-				System.out.println("Reconnect failed " + arg0.getMessage());
-			}
-			
-			@Override
-			public void reconnectingIn(int arg0) {
-				System.out.println("Reconnecting in " + arg0);
-			}
-			
-			@Override
-			public void connectionClosedOnError(Exception arg0) {
-				System.out.println("Connection Closed " + arg0.getMessage());
-			}
-			
-			@Override
-			public void connectionClosed() {
-				System.out.println("Connection Closed");
-			}
-		});
+		Message m = new Message();
+		m.setTo(connection.getUser());
+		m.setType(Message.Type.headline);
+		connection.sendPacket(m);
 	}
 
 	// Check connection status
