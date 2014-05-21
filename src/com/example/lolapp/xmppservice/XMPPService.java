@@ -869,7 +869,28 @@ public class XMPPService extends Service {
 		String groupName = b.getString(GROUP_CHAT_NAME);
 		Type t = (Type) b.getSerializable(ChatFragment.TYPE);
 
+		if (!muc.containsKey(from)) {
+			Intent i = new Intent();
+			i.setAction(ACTION_UPDATE_GROUP_CHAT);
+			sendBroadcast(i);
+			return;
+		}
+		
+		
 		if (inviteResponse) {
+			// Check if already in room
+			if (muc.get(from).isJoined()) {
+				Intent i = new Intent();
+				i.setAction(ACTION_UPDATE_GROUP_CHAT);
+				i.putExtra(GROUP_FROM, from);
+				i.putExtra(INVITE_RESPONSE, false);
+				i.putExtra(GROUP_TYPE, type);
+				i.putExtra(GROUP_CHAT_NAME, groupName);
+				i.putExtra(ChatFragment.TYPE, t);
+				sendBroadcast(i);
+				return;
+			}
+			
 			// Join room
 			try {
 				muc.get(from).join(connection.getUser());
