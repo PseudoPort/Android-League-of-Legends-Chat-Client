@@ -64,6 +64,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.PorterDuff.Mode;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -101,6 +102,8 @@ public class XMPPService extends Service {
 	
 	public static final String ACTION_GROUP_LIST = "action.GROUP_LIST";
 	
+	public static final String ACTION_STATUS_CHANGE = "action.STATUS_CHANGE";
+	
 	public static final String ACTION_TEST = "action.TEST";
 
 	public static final String CONNECTION_STATUS = "CONNECTION_STATUS";
@@ -116,7 +119,9 @@ public class XMPPService extends Service {
 	public static final String MESSAGE = "MESSAGE";
 	public static final String TIMESTAMP = "TIMESTAMP";
 	public static final String IS_ONLINE = "IS_ONLINE";
-
+	
+	public static final String STATUS_TYPE = "STATUS_TYPE";
+	
 	public static final String CHAT_ID = "CHAT_ID";
 
 	public static final String GROUP_FROM = "GROUP_FROM";
@@ -143,7 +148,9 @@ public class XMPPService extends Service {
 	Collection<RosterGroup> groups = null;
 
 	String summonerName;
-
+	
+	// Connection test
+	Thread connectionThread = null;
 
 	// Multi-user Chat
 	HashMap<String, MultiUserChat> muc = new HashMap<String, MultiUserChat>();
@@ -213,6 +220,8 @@ public class XMPPService extends Service {
 			joinGroupChat(intent);
 		} else if (action.equals(ACTION_GROUP_LIST)) {
 			getGroupList(intent);
+		} else if (action.equals(ACTION_STATUS_CHANGE)) {
+			updateStatus(intent);
 		} else if (action.equals(ACTION_TEST)) {
 			test(intent);
 		}
@@ -304,7 +313,8 @@ public class XMPPService extends Service {
 						System.out.println("Connection Closed");
 					}
 				});
-				//new ConnectionTest().start();
+				connectionThread = new Thread(new CheckConnection());
+				connectionThread.start();
 			} catch (Exception ex) {
 				Log.e("XMPPStatus", "Failed to log in as "+  "USER");
 				Log.e("XMPPStatus", ex.toString());
@@ -366,7 +376,7 @@ public class XMPPService extends Service {
 
 	}
 
-	private class Disconnect extends AsyncTask<Void, Void, Void> {
+	public class Disconnect extends AsyncTask<Void, Void, Void> {
 
 		@Override
 		protected Void doInBackground(Void... params) {
@@ -419,7 +429,45 @@ public class XMPPService extends Service {
 		}
 
 	}
+	
+	Message connectionMessage = null;
+	public class CheckConnection implements Runnable {
 
+		@Override
+		public void run() {
+			long timeout = 10000;
+			
+			Message m = new Message();
+			m.setTo(connection.getUser());
+			m.setType(Message.Type.headline);
+			m.setBody("Connection_Test");
+			String id = "";
+			
+			while (true && connection.isConnected()) {
+				// Check connection
+				id = m.getPacketID();
+				connection.sendPacket(m);
+				try {
+					Thread.sleep(timeout);
+				} catch (InterruptedException e) {
+					
+				}
+				if (connectionMessage == null || !connectionMessage.getPacketID().equals(id)) {
+					// Disconnected
+					System.out.println("DISCONNECTED");
+					break;
+				} else {
+					System.out.println("CONNECTED");
+				}
+			}
+			
+			// On disconnect
+			new Disconnect().execute();
+		}
+		
+	}
+	
+	
 	public void setMessageListener() {
 		if (connection != null) {
 			// Add a packet listener to get messages sent to us (NORMAL MESSAGES)
@@ -562,7 +610,11 @@ public class XMPPService extends Service {
 
 				@Override
 				public void processPacket(Packet packet) { // Headline
-					System.out.println("HEADLINE - " + packet.toXML());
+					Message connMessage = connectionMessage;
+					connectionMessage = (Message)packet;
+					if (!connectionMessage.getBody().equals("Connection_Test")) {
+						connectionMessage = connMessage;
+					}
 				}
 			}, filter4);
 		}
@@ -752,7 +804,6 @@ public class XMPPService extends Service {
 	}
 	
 	// Send group chat invite
-	// TODO: Check if chat exists, then invite users (may need to create chat in main activity?)
 	public void sendGroupInvite(Intent intent) {
 		// Invite to chat - PU/PR
 		String user = intent.getStringExtra(USER);
@@ -963,6 +1014,44 @@ public class XMPPService extends Service {
 		}
 	}
 	
+	// Update Status
+	public void updateStatus(Intent intent) {
+		String status = intent.getStringExtra(STATUS);
+		String statusType = intent.getStringExtra(STATUS_TYPE);
+		
+		Presence p = new Presence(Presence.Type.available);
+		if (statusType.equals("chat")) {
+			p.setMode(Presence.Mode.chat);
+		} else if (statusType.equals("away")) {
+			p.setMode(Presence.Mode.away);
+		} else {
+			p.setMode(Presence.Mode.dnd);
+		}
+		p.setStatus("<body>"
+    			+ "<profileIcon>22</profileIcon>"
+    			+ "<level>0</level>"
+    			+ "<wins>0</wins>"
+    			+ "<leaves>0</leaves>"
+    			+ "<odinWins>0</odinWins>"
+    			+ "<odinLeaves>0</odinLeaves>"
+    			+ "<queueType />"
+    			+ "<rankedLosses>0</rankedLosses>"
+    			+ "<rankedRating>0</rankedRating>"
+    			+ "<tier></tier>"
+    			+ "<rankedLeagueName></rankedLeagueName>"
+    			+ "<rankedLeagueDivision></rankedLeagueDivision>"
+    			+ "<rankedLeagueTier></rankedLeagueTier>"
+    			+ "<rankedLeagueQueue></rankedLeagueQueue>"
+    			+ "<rankedWins>0</rankedWins>"
+    			+ "<statusMsg>" + status + "</statusMsg>"
+    			+ "<gameStatus>outOfGame</gameStatus>"
+    			+ "</body>");
+		
+		System.out.println("STATUS UPDATE");
+		connection.sendPacket(p);
+		
+	}
+	
 	// TEST METHOD
 	public void test(Intent intent) {
 		String user = intent.getStringExtra("NAME");
@@ -1003,29 +1092,10 @@ public class XMPPService extends Service {
 		//Presence p = new Presence(Presence.Type.available);
 		//connection.sendPacket(p);
 
-		Message m = new Message();
-		m.setTo(connection.getUser());
-		m.setType(Message.Type.headline);
-		connection.sendPacket(m);
-	}
-
-	// Check connection status
-	private class ConnectionTest extends Thread implements Runnable {
-
-		@Override
-		public void run() {
-			while (true) {
-				if (connection == null) {
-					System.out.println("CONNECTION NULL!!");
-					try {
-						Thread.sleep(30000);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-			}
-		}
-
+		//Message m = new Message();
+		//m.setTo(connection.getUser());
+		//m.setType(Message.Type.headline);
+		//connection.sendPacket(m);
 	}
 
 	public void receiveChatMessage(Packet packet) {

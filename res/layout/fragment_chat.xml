@@ -21,8 +21,6 @@
         android:imeOptions="actionSend"
         android:imeActionId="0"
         android:imeActionLabel="Send" >
-
-        <requestFocus />
     </EditText>
 
     <Button

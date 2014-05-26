@@ -87,7 +87,7 @@ import android.os.Handler;
 
 public class MainActivity extends ActionBarActivity implements LoginFragment.OnLoginListener, FriendsListFragment.OnFriendChatClickListener, ChatFragment.OnCreateListener, ChatListFragment.ChatListListener, NotificationFragment.NotificationListListener, 
 LoginFragment.OnFragmentCreatedListener, FriendsListFragment.OnFragmentCreatedListener, HomeFragment.OnFragmentCreatedListener, NotificationFragment.OnFragmentCreatedListener, ChatFragment.OnFragmentCreatedListener,
-ChatListFragment.OnFragmentCreatedListener {
+ChatListFragment.OnFragmentCreatedListener, HomeFragment.StatusClickListener {
 	public static final String FILENAME = "login_file";
 
 	public static final String HOST = "chat.na1.lol.riotgames.com";
@@ -798,7 +798,17 @@ ChatListFragment.OnFragmentCreatedListener {
 			listView.setOnTouchListener(gestureListener);
 		}
 	}
-
+	
+	// On Status Change
+	@Override
+	public void onStatusClicked(String statusText, String statusType) {
+		Intent intent = new Intent(this, XMPPService.class);
+		intent.setAction(XMPPService.ACTION_STATUS_CHANGE);
+		intent.putExtra(XMPPService.STATUS, statusText);
+		intent.putExtra(XMPPService.STATUS_TYPE, statusType);
+		startService(intent);
+	}
+	
 	@Override
 	public void onBackPressed() {
 		back();
@@ -1087,6 +1097,7 @@ ChatListFragment.OnFragmentCreatedListener {
 
 			// Switch fragment
 			openFriendList();
+			openHome();
 		}
 
 		currentUser = intent.getExtras().getString(XMPPService.USER);
@@ -1175,7 +1186,7 @@ ChatListFragment.OnFragmentCreatedListener {
 	public void onReceiveMessage(Intent intent) {		
 		Bundle b = intent.getExtras();
 		String user = b.getString(XMPPService.USER);
-
+		
 		// Add new message
 		// Setup chatMessages
 		if (!chatMessages.containsKey(user)) {
@@ -1186,6 +1197,9 @@ ChatListFragment.OnFragmentCreatedListener {
 
 			}
 		}
+		
+		System.out.println(summoners.get(user));
+		
 		chatMessages.get(user).put(System.currentTimeMillis(), new ChatMessage(summoners.get(b.getString(XMPPService.USER)).name + ": " + b.getString(XMPPService.MESSAGE), b.getString(XMPPService.USER), false));
 
 		// Send Notification
@@ -1794,22 +1808,18 @@ ChatListFragment.OnFragmentCreatedListener {
 			.setContentText("Click to view");
 			notificationChat = null;
 		}
+		
+		builder.setDefaults(android.app.Notification.DEFAULT_ALL);
+		nm.notify(notifyID, builder.build());
 	
-	builder.setDefaults(android.app.Notification.DEFAULT_ALL);
-	nm.notify(notifyID, builder.build());
+	}
+	
+	public int dp(double p) {
+		float scale = getResources().getDisplayMetrics().density;
+		int dpAsPixels = (int) (p*scale + 0.5f);
+		return dpAsPixels;
+	}
 
-}
-
-public int dp(double p) {
-	float scale = getResources().getDisplayMetrics().density;
-	int dpAsPixels = (int) (p*scale + 0.5f);
-	return dpAsPixels;
-}
-
-
-
-
-
-
+	
 
 }

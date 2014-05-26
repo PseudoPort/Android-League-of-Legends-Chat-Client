@@ -78,6 +78,8 @@ public class Summoner {
 				s = "Creating Custom Game";
 			} else if (getGameStatus().equals("inGame")) {
 				s = "In Game: " + getChampion() + " (" + getTimeStamp() + " min)";
+			} else {
+				s = getChatStatus();
 			}
 		} else if (mode.equals("away")) {
 			s = getChatStatus();
